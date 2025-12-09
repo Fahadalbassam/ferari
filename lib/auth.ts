@@ -8,6 +8,8 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import EmailProvider from "next-auth/providers/email";
 import clientPromise from "./mongodb-adapter-client";
+import { getDb } from "./db";
+import { ObjectId } from "mongodb";
 
 type AppUser = {
   id: string;
@@ -65,7 +67,9 @@ if (process.env.RESEND_SMTP_URL && process.env.RESEND_FROM_EMAIL) {
 }
 
 export const authOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  adapter: MongoDBAdapter(clientPromise, {
+    databaseName: process.env.MONGODB_DB,
+  }),
   session: {
     strategy: "database",
     maxAge: 60 * 60 * 4, // 4 hours
@@ -81,13 +85,27 @@ export const authOptions = {
       user?: AppUser | null;
       token: JWT;
     }) {
+      const sUser = session.user as Session["user"] & AppUser;
+      // Prefer fresh lookup to avoid stale roles after promotion.
+      try {
+        const db = await getDb();
+        const id = user?.id || token?.sub;
+        if (id) {
+          const dbUser = await db.collection("users").findOne({ _id: new ObjectId(id) });
+          if (dbUser) {
+            sUser.id = dbUser._id.toString();
+            sUser.role = (dbUser as { role?: string }).role ?? "user";
+            return session;
+          }
+        }
+      } catch {
+        // fallback to previous behavior
+      }
+
       if (user?.id) {
-        // database session
-        const sUser = session.user as Session["user"] & AppUser;
         sUser.id = user.id;
         sUser.role = (user as AppUser).role ?? "user";
       } else if (token?.sub) {
-        const sUser = session.user as Session["user"] & AppUser;
         sUser.id = token.sub;
         sUser.role = (token as AppUser).role ?? "user";
       }
@@ -109,6 +127,20 @@ export const authOptions = {
   },
   pages: {
     signIn: "/auth/signin",
+  },
+  events: {
+    // For OAuth sign-ins, mark the email as verified so they can be treated as trusted.
+    async signIn({ user, account }: { user?: AppUser | null; account?: { provider?: string } | null }) {
+      if (!user?.id || !account?.provider || account.provider === "credentials") return;
+      try {
+        const db = await getDb();
+        await db
+          .collection("users")
+          .updateOne({ _id: new ObjectId(user.id) }, { $set: { emailVerified: new Date(), updatedAt: new Date() } });
+      } catch (err) {
+        console.error("signIn event update emailVerified failed", err);
+      }
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
