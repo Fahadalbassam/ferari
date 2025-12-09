@@ -4,13 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 
 type Status = "idle" | "checking" | "prompt" | "ready" | "error";
 
+type OrderStatus = "pending" | "paid" | "shipped" | "delivered" | "cancelled";
+type TestDriveStatus = "new" | "confirmed" | "completed" | "cancelled";
+
+const ORDER_STATUSES: OrderStatus[] = ["pending", "paid", "shipped", "delivered", "cancelled"];
+const TD_STATUSES: TestDriveStatus[] = ["new", "confirmed", "completed", "cancelled"];
+
 type Order = {
   id: string;
   orderNumber: string;
-  email: string;
+  buyerEmail: string;
+  buyerName: string;
   total: number;
-  status: string;
+  status: OrderStatus;
   createdAt: string;
+  currency: string;
+  tracking?: string;
 };
 
 type TestDrive = {
@@ -19,8 +28,19 @@ type TestDrive = {
   email: string;
   vehicle: string;
   preferredDate: string;
-  status: string;
+  status: TestDriveStatus;
   createdAt: string;
+  notes?: string;
+};
+
+type Car = {
+  _id: string;
+  model: string;
+  price: number;
+  currency: string;
+  type: string;
+  inventory: number;
+  status: string;
 };
 
 export default function AdminDashboardPage() {
@@ -29,6 +49,19 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [requests, setRequests] = useState<TestDrive[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [ordersMeta, setOrdersMeta] = useState({ page: 1, totalPages: 1 });
+  const [requestsMeta, setRequestsMeta] = useState({ page: 1, totalPages: 1 });
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
+
+  const [newCar, setNewCar] = useState({
+    model: "",
+    price: "",
+    currency: "USD",
+    type: "buy",
+    inventory: "0",
+  });
 
   const fetchVerify = async () => {
     setError(null);
@@ -46,28 +79,38 @@ export default function AdminDashboardPage() {
     return false;
   };
 
+  const loadData = async (opts?: { ordersPage?: number; requestsPage?: number }) => {
+    if (status !== "ready") return;
+    const ordersPage = opts?.ordersPage ?? ordersMeta.page;
+    const requestsPage = opts?.requestsPage ?? requestsMeta.page;
+    const [oRes, tRes, cRes] = await Promise.all([
+      fetch(`/api/admin/orders?page=${ordersPage}&limit=20`),
+      fetch(`/api/admin/testdrives?page=${requestsPage}&limit=20`),
+      fetch("/api/admin/cars"),
+    ]);
+    if (oRes.ok) {
+      const data = await oRes.json();
+      setOrders(data.orders || []);
+      setOrdersMeta({ page: data.page ?? ordersPage, totalPages: data.totalPages ?? 1 });
+    }
+    if (tRes.ok) {
+      const data = await tRes.json();
+      setRequests(data.requests || []);
+      setRequestsMeta({ page: data.page ?? requestsPage, totalPages: data.totalPages ?? 1 });
+    }
+    if (cRes.ok) {
+      const data = await cRes.json();
+      setCars(data.cars || []);
+    }
+  };
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchVerify();
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (status !== "ready") return;
-      const [oRes, tRes] = await Promise.all([
-        fetch("/api/admin/orders?page=1&limit=20"),
-        fetch("/api/admin/testdrives?page=1&limit=20"),
-      ]);
-      if (oRes.ok) {
-        const data = await oRes.json();
-        setOrders(data.orders || []);
-      }
-      if (tRes.ok) {
-        const data = await tRes.json();
-        setRequests(data.requests || []);
-      }
-    };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const handleSubmit = async () => {
@@ -103,6 +146,80 @@ export default function AdminDashboardPage() {
     }, {});
     return { total, byStatus };
   }, [requests]);
+
+  const carStats = useMemo(() => {
+    const total = cars.length;
+    const active = cars.filter((c) => c.status === "active").length;
+    return { total, active };
+  }, [cars]);
+
+  const handleCreateCar = async () => {
+    setError(null);
+    const payload = {
+      model: newCar.model,
+      price: Number(newCar.price || 0),
+      currency: newCar.currency,
+      type: newCar.type as "buy" | "rent" | "both",
+      inventory: Number(newCar.inventory || 0),
+    };
+    const res = await fetch("/api/admin/cars", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to create car");
+      return;
+    }
+    const data = await res.json();
+    setCars((prev) => [data.car, ...prev]);
+    setNewCar({ model: "", price: "", currency: "USD", type: "buy", inventory: "0" });
+  };
+
+  const handleOrderStatus = async (id: string, nextStatus: OrderStatus) => {
+    setUpdatingOrderId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: nextStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update order");
+      }
+      const data = await res.json();
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...data.order } : o)));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const handleTestDriveStatus = async (id: string, nextStatus: TestDriveStatus) => {
+    setUpdatingRequestId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/testdrives", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: nextStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update request");
+      }
+      const data = await res.json();
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, ...data.request } : r)));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUpdatingRequestId(null);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
@@ -146,7 +263,13 @@ export default function AdminDashboardPage() {
 
         {status === "ready" && (
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <StatCard
+                title="Cars"
+                value={carStats.total}
+                breakdown={{ active: carStats.active, inactive: carStats.total - carStats.active }}
+                accent="from-purple-500/30 via-purple-500/10 to-transparent"
+              />
               <StatCard
                 title="Orders"
                 value={orderStats.total}
@@ -162,6 +285,99 @@ export default function AdminDashboardPage() {
             </div>
 
             <section className="space-y-3">
+              <div className="text-lg font-semibold">Inventory</div>
+              <div className="grid gap-3 rounded-lg border border-white/10 bg-white/5 p-4 lg:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="text-sm text-white/80">Add / Post car</div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      value={newCar.model}
+                      onChange={(e) => setNewCar((p) => ({ ...p, model: e.target.value }))}
+                      placeholder="Model"
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    />
+                    <input
+                      value={newCar.price}
+                      onChange={(e) => setNewCar((p) => ({ ...p, price: e.target.value }))}
+                      placeholder="Price"
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    />
+                    <input
+                      value={newCar.currency}
+                      onChange={(e) => setNewCar((p) => ({ ...p, currency: e.target.value }))}
+                      placeholder="Currency (USD/SAR)"
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    />
+                    <select
+                      value={newCar.type}
+                      onChange={(e) => setNewCar((p) => ({ ...p, type: e.target.value }))}
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    >
+                      <option value="buy">Buy</option>
+                      <option value="rent">Rent</option>
+                      <option value="both">Both</option>
+                    </select>
+                    <input
+                      value={newCar.inventory}
+                      onChange={(e) => setNewCar((p) => ({ ...p, inventory: e.target.value }))}
+                      placeholder="Inventory"
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                  <button
+                    onClick={handleCreateCar}
+                    className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/80"
+                  >
+                    Post car to browse
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm text-white/70">
+                  <div className="font-semibold text-white">Guidelines</div>
+                  <ul className="list-disc space-y-1 pl-4">
+                    <li>Set inventory to allow buy/test-drive.</li>
+                    <li>Price and currency appear on browse cards.</li>
+                    <li>Add images later via edit if needed.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                <table className="w-full text-sm">
+                  <thead className="bg-white/5 text-white/70">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Model</th>
+                      <th className="px-4 py-2 text-left">Price</th>
+                      <th className="px-4 py-2 text-left">Type</th>
+                      <th className="px-4 py-2 text-left">Inventory</th>
+                      <th className="px-4 py-2 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cars.map((c) => (
+                      <tr key={c._id} className="border-t border-white/5">
+                        <td className="px-4 py-2">{c.model}</td>
+                        <td className="px-4 py-2">
+                          {c.currency} {c.price.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2">{c.type}</td>
+                        <td className="px-4 py-2">{c.inventory}</td>
+                        <td className="px-4 py-2">
+                          <Badge>{c.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                    {!cars.length && (
+                      <tr>
+                        <td className="px-4 py-3 text-center text-white/60" colSpan={5}>
+                          No cars posted yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="space-y-3">
               <div className="text-lg font-semibold">Recent Orders</div>
               <div className="overflow-hidden rounded-lg border border-white/10 bg-white/5">
                 <table className="w-full text-sm">
@@ -171,19 +387,37 @@ export default function AdminDashboardPage() {
                       <th className="px-4 py-2 text-left">Email</th>
                       <th className="px-4 py-2 text-left">Total</th>
                       <th className="px-4 py-2 text-left">Status</th>
-                      <th className="px-4 py-2 text-left">Created</th>
+                    <th className="px-4 py-2 text-left">Created</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
                       <tr key={o.id} className="border-t border-white/5">
                         <td className="px-4 py-2">{o.orderNumber}</td>
-                        <td className="px-4 py-2 text-white/80">{o.email}</td>
+                        <td className="px-4 py-2 text-white/80">{o.buyerEmail}</td>
                         <td className="px-4 py-2">${o.total.toLocaleString()}</td>
                         <td className="px-4 py-2">
                           <Badge>{o.status}</Badge>
                         </td>
                         <td className="px-4 py-2 text-white/60">{new Date(o.createdAt).toLocaleString()}</td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={o.status}
+                              onChange={(e) => handleOrderStatus(o.id, e.target.value as OrderStatus)}
+                              disabled={updatingOrderId === o.id}
+                              className="rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-xs text-white"
+                            >
+                              {ORDER_STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                            {updatingOrderId === o.id && <span className="text-xs text-white/60">Updating…</span>}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                     {!orders.length && (
@@ -195,6 +429,35 @@ export default function AdminDashboardPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>
+                  Page {ordersMeta.page} of {ordersMeta.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const next = Math.max(1, ordersMeta.page - 1);
+                      setOrdersMeta((p) => ({ ...p, page: next }));
+                      loadData({ ordersPage: next });
+                    }}
+                    disabled={ordersMeta.page <= 1}
+                    className="rounded-md border border-white/20 px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = Math.min(ordersMeta.totalPages, ordersMeta.page + 1);
+                      setOrdersMeta((p) => ({ ...p, page: next }));
+                      loadData({ ordersPage: next });
+                    }}
+                    disabled={ordersMeta.page >= ordersMeta.totalPages}
+                    className="rounded-md border border-white/20 px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -209,6 +472,7 @@ export default function AdminDashboardPage() {
                       <th className="px-4 py-2 text-left">Vehicle</th>
                       <th className="px-4 py-2 text-left">Preferred</th>
                       <th className="px-4 py-2 text-left">Status</th>
+                      <th className="px-4 py-2 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -221,6 +485,23 @@ export default function AdminDashboardPage() {
                         <td className="px-4 py-2">
                           <Badge>{r.status}</Badge>
                         </td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={r.status}
+                              onChange={(e) => handleTestDriveStatus(r.id, e.target.value as TestDriveStatus)}
+                              disabled={updatingRequestId === r.id}
+                              className="rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-xs text-white"
+                            >
+                              {TD_STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                            {updatingRequestId === r.id && <span className="text-xs text-white/60">Updating…</span>}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                     {!requests.length && (
@@ -232,6 +513,35 @@ export default function AdminDashboardPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>
+                  Page {requestsMeta.page} of {requestsMeta.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const next = Math.max(1, requestsMeta.page - 1);
+                      setRequestsMeta((p) => ({ ...p, page: next }));
+                      loadData({ requestsPage: next });
+                    }}
+                    disabled={requestsMeta.page <= 1}
+                    className="rounded-md border border-white/20 px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = Math.min(requestsMeta.totalPages, requestsMeta.page + 1);
+                      setRequestsMeta((p) => ({ ...p, page: next }));
+                      loadData({ requestsPage: next });
+                    }}
+                    disabled={requestsMeta.page >= requestsMeta.totalPages}
+                    className="rounded-md border border-white/20 px-2 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </section>
           </div>

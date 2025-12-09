@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { sampleOrders } from "@/lib/adminSample";
 import { getServerAuthSession } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { listOrders, updateOrder, type OrderStatus } from "@/lib/models/orders";
+import { adjustInventory } from "@/lib/models/cars";
 
 export const dynamic = "force-dynamic";
 
-function ensureAdminSession(session: { user?: { id?: string; role?: string } } | null) {
-  const cookie = cookies().get("admin_session");
+async function ensureAdminSession(session: { user?: { id?: string; role?: string } } | null) {
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get("admin_session");
   if (!cookie) return false;
   try {
     const parsed = JSON.parse(Buffer.from(cookie.value, "base64").toString());
@@ -22,27 +24,40 @@ function ensureAdminSession(session: { user?: { id?: string; role?: string } } |
 
 export async function GET(req: Request) {
   const session = await getServerAuthSession();
-  if (!ensureAdminSession(session)) {
+  if (!(await ensureAdminSession(session as { user?: { id?: string; role?: string } } | null))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const q = searchParams.get("q")?.toLowerCase() ?? "";
+  const statusParam = searchParams.get("status") as OrderStatus | null;
+  const q = searchParams.get("q") ?? "";
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const limit = parseInt(searchParams.get("limit") ?? "10", 10);
 
-  let data = sampleOrders;
-  if (status) data = data.filter((o) => o.status === status);
-  if (q) {
-    data = data.filter((o) => o.orderNumber.toLowerCase().includes(q) || o.email.toLowerCase().includes(q));
+  const { total, orders } = await listOrders({ status: statusParam ?? undefined, q, page, limit });
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  return NextResponse.json({ total, page, limit, totalPages, orders });
+}
+
+export async function PATCH(req: Request) {
+  const session = await getServerAuthSession();
+  if (!(await ensureAdminSession(session as { user?: { id?: string; role?: string } } | null))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const body = await req.json().catch(() => ({}));
+  const { id, status, tracking } = body || {};
+  if (!id || !status) return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
+
+  const order = await updateOrder(id, { status, tracking });
+  if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (status === "cancelled") {
+    await adjustInventory(order.carId.toString(), 1);
+  } else if (order.status === "cancelled" && status !== "cancelled") {
+    await adjustInventory(order.carId.toString(), -1);
   }
 
-  const total = data.length;
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  const paged = data.slice(start, end);
-
-  return NextResponse.json({ total, page, limit, orders: paged });
+  return NextResponse.json({ order });
 }
 

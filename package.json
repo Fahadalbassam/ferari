@@ -41,6 +41,7 @@
     "mongodb": "^5.9.0",
     "next": "16.0.7",
     "next-auth": "^4.24.7",
+    "slugify": "^1.6.6",
     "nodemailer": "^7.0.11",
     "react": "19.2.0",
     "react-dom": "19.2.0",

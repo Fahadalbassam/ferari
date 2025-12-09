@@ -19,8 +19,9 @@ function makeCookie(payload: { userId: string; expiresAt: number }) {
   };
 }
 
-function readCookie() {
-  const value = cookies().get(COOKIE_NAME)?.value;
+async function readCookie() {
+  const cookieStore = await cookies();
+  const value = cookieStore.get(COOKIE_NAME)?.value;
   if (!value) return null;
   try {
     const parsed = JSON.parse(Buffer.from(value, "base64").toString());
@@ -33,8 +34,8 @@ function readCookie() {
 }
 
 export async function GET() {
-  const session = await getServerAuthSession();
-  const cookieData = readCookie();
+  const session = (await getServerAuthSession()) as { user?: { id?: string } } | null;
+  const cookieData = await readCookie();
   if (!session?.user?.id || !cookieData || cookieData.userId !== session.user.id) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ADMIN_ROOT_PASSWORD not set" }, { status: 500 });
   }
 
-  const session = await getServerAuthSession();
+  const session = (await getServerAuthSession()) as { user?: { id?: string; role?: string } } | null;
   if (!session?.user?.id || (session.user as { role?: string }).role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
