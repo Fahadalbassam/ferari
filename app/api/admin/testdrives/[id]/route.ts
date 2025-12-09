@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sampleTestDrives } from "@/lib/adminSample";
 import { getServerAuthSession } from "@/lib/auth";
 import { cookies } from "next/headers";
@@ -20,7 +20,7 @@ function ensureAdminSession(session: { user?: { id?: string; role?: string } } |
   }
 }
 
-export async function PATCH(_req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerAuthSession();
   if (!ensureAdminSession(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
