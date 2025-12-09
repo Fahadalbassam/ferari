@@ -15,6 +15,15 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetStage, setResetStage] = useState<"request" | "verify">("request");
+  const [resetEmail, setResetEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,6 +38,66 @@ export default function SignInPage() {
     if (res?.error) {
       setError("Invalid credentials. Please try again.");
       setIsSubmitting(false);
+      return;
+    }
+    window.location.href = "/";
+  };
+
+  const handleSendOtp = async () => {
+    setResetError(null);
+    setResetMessage(null);
+    if (!resetEmail) {
+      setResetError("Enter your email to receive an OTP.");
+      return;
+    }
+    setResetLoading(true);
+    const res = await fetch("/api/auth/password-reset/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail }),
+    });
+    setResetLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setResetError(data.error || "Failed to send OTP.");
+      return;
+    }
+    setResetStage("verify");
+    setResetMessage("OTP sent. Check your email (or server logs in dev).");
+  };
+
+  const handleConfirmReset = async () => {
+    setResetError(null);
+    setResetMessage(null);
+    if (!resetEmail || !otp || !newPassword || !confirmPassword) {
+      setResetError("Fill all fields.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setResetError("Passwords do not match.");
+      return;
+    }
+    setResetLoading(true);
+    const res = await fetch("/api/auth/password-reset/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail, otp, newPassword }),
+    });
+    setResetLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setResetError(data.error || "Failed to reset password.");
+      return;
+    }
+    setResetMessage("Password updated. Logging you in...");
+    const loginRes = await signIn("credentials", {
+      redirect: false,
+      identifier: resetEmail,
+      password: newPassword,
+      callbackUrl: "/",
+    });
+    if (loginRes?.error) {
+      setResetError("Password changed, but login failed. Please sign in manually.");
       return;
     }
     window.location.href = "/";
@@ -89,6 +158,105 @@ export default function SignInPage() {
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <div className="mt-3 text-right">
+          <button
+            type="button"
+            onClick={() => setShowReset((v) => !v)}
+            className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
+
+        {showReset && (
+          <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 shadow-inner">
+            <div className="mb-2 text-sm font-semibold text-neutral-800">Password reset</div>
+            <div className="space-y-3 text-sm text-neutral-800">
+              <div>
+                <label className="font-medium">Email</label>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                />
+              </div>
+              {resetStage === "verify" && (
+                <>
+                  <div>
+                    <label className="font-medium">OTP</label>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-medium">New password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-medium">Confirm password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {resetError && <div className="text-sm text-red-600">{resetError}</div>}
+              {resetMessage && <div className="text-sm text-green-600">{resetMessage}</div>}
+
+              <div className="flex items-center gap-3">
+                {resetStage === "request" ? (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={resetLoading}
+                    className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                  >
+                    {resetLoading ? "Sending..." : "Send OTP"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleConfirmReset}
+                    disabled={resetLoading}
+                    className="flex-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                  >
+                    {resetLoading ? "Updating..." : "Update & sign in"}
+                  </button>
+                )}
+                {resetStage === "verify" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetStage("request");
+                      setOtp("");
+                      setNewPassword("");
+                      setConfirmPassword("");
+                      setResetMessage(null);
+                      setResetError(null);
+                    }}
+                    className="rounded-md border border-neutral-200 px-3 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-300"
+                  >
+                    Resend
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-400">
           <span className="h-px flex-1 bg-neutral-200" />
