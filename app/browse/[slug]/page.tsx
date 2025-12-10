@@ -47,20 +47,20 @@ export default function PostDetail() {
   useEffect(() => {
     const load = async () => {
       if (!slug) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/cars/${slug}`, { next: { revalidate: 0 } });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setCar(data.car || null);
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/cars/${slug}`, { next: { revalidate: 0 } });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setCar(data.car || null);
       setActiveImage(data.car?.images?.[0] ?? null);
-    } catch (err) {
-      setError("Failed to load car.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      } catch (err) {
+        setError("Failed to load car.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [slug]);
@@ -116,7 +116,7 @@ export default function PostDetail() {
       }
       router.push("/test-drive");
       setTimeout(() => {
-        alert("Test drive requested. We will confirm soon.");
+      alert("Test drive requested. We will confirm soon.");
       }, 50);
     } catch (err) {
       setError((err as Error).message);
@@ -140,18 +140,18 @@ export default function PostDetail() {
           <>
             <div className="grid gap-8 lg:grid-cols-2">
               <div className="space-y-3">
-                <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
+              <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
                   {activeImage ? (
-                    <Image
+                  <Image
                       src={activeImage}
-                      alt={car.model}
-                      fill
-                      sizes="(min-width: 1024px) 50vw, 100vw"
-                      className="object-cover"
-                      priority
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
+                    alt={car.model}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
                   )}
                 </div>
                 {images.length > 1 && (

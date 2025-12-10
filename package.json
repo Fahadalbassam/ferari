@@ -38,6 +38,7 @@
     "cloudflare": "^5.2.0",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^12.23.26",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.556.0",
     "mongodb": "^5.9.0",
