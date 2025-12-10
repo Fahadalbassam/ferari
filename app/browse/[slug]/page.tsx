@@ -7,7 +7,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -127,23 +126,6 @@ export default function PostDetail() {
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
-      <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Image src="/ferrari-logo-png_seeklogo-512505.png" alt="Ferrari logo" width={44} height={44} priority />
-          <div className="text-sm text-neutral-600">Listing details</div>
-        </div>
-        <nav className="hidden items-center gap-6 text-sm font-medium md:flex text-neutral-800">
-          {[
-            { label: "Home", href: "/" },
-            { label: "Browse", href: "/browse" },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="text-neutral-700 transition hover:text-neutral-900">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 lg:px-0">
         {loading ? (
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-10 text-center text-neutral-700">Loading...</div>
@@ -154,9 +136,16 @@ export default function PostDetail() {
         ) : (
           <>
             <div className="grid gap-8 lg:grid-cols-2">
-              <div className="relative h-80 w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100">
+              <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
                 {car.images?.[0] ? (
-                  <Image src={car.images[0]} alt={car.model} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+                  <Image
+                    src={car.images[0]}
+                    alt={car.model}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                    priority
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
                 )}

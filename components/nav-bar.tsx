@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { AccountSidebar } from "@/components/account-sidebar";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -51,6 +52,7 @@ export default function NavBar() {
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
                 {session.user.email?.slice(0, 2).toUpperCase()}
               </div>
+              <AccountSidebar />
             </>
           ) : (
             <Link
@@ -60,6 +62,7 @@ export default function NavBar() {
               Sign In
             </Link>
           )}
+          {/* Mobile menu trigger (existing) */}
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -159,5 +162,3 @@ export default function NavBar() {
     </>
   );
 }
-
-

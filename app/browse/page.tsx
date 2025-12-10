@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import FilterSidebar from "@/components/filter-sidebar";
+import { useFilters } from "@/hooks/use-filters";
 
 type Car = {
   _id: string;
@@ -18,15 +19,8 @@ type Car = {
 
 const ITEMS_PER_PAGE = 24;
 
-export default function BrowsePage() {
-  const { data: session } = useSession();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "buy" | "rent" | "both">("all");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1500000]);
-  const [appliedPriceRange, setAppliedPriceRange] = useState<[number, number]>([0, 1500000]);
-  const [sortBy, setSortBy] = useState<"recent" | "price-low" | "price-high">("recent");
+function BrowsePageContent() {
+  const { filters, effectiveFilters, setFilter, clearFilters } = useFilters();
   const [currentPage, setCurrentPage] = useState(1);
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,17 +45,37 @@ export default function BrowsePage() {
     load();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    effectiveFilters.search,
+    effectiveFilters.type,
+    effectiveFilters.priceRange,
+    effectiveFilters.availability,
+  ]);
+
   const filtered = useMemo(() => {
     return cars
-      .filter((c) => (searchQuery ? c.model.toLowerCase().includes(searchQuery.toLowerCase()) : true))
-      .filter((c) => (typeFilter === "all" ? true : c.type === typeFilter))
-      .filter((c) => c.price >= appliedPriceRange[0] && c.price <= appliedPriceRange[1])
+      .filter((c) =>
+        effectiveFilters.search
+          ? c.model.toLowerCase().includes(effectiveFilters.search.toLowerCase())
+          : true,
+      )
+      .filter((c) => (effectiveFilters.type === "all" ? true : c.type === effectiveFilters.type))
+      .filter(
+        (c) =>
+          c.price >= effectiveFilters.priceRange[0] &&
+          c.price <= effectiveFilters.priceRange[1],
+      )
+      .filter((c) =>
+        effectiveFilters.availability === "in-stock" ? (c.inventory ?? 0) > 0 : true,
+      )
       .sort((a, b) => {
-        if (sortBy === "price-low") return a.price - b.price;
-        if (sortBy === "price-high") return b.price - a.price;
+        if (effectiveFilters.sort === "price-low") return a.price - b.price;
+        if (effectiveFilters.sort === "price-high") return b.price - a.price;
         return b._id.localeCompare(a._id);
       });
-  }, [cars, searchQuery, typeFilter, appliedPriceRange, sortBy]);
+  }, [cars, effectiveFilters]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
@@ -70,87 +84,8 @@ export default function BrowsePage() {
     return filtered.slice(start, start + ITEMS_PER_PAGE);
   }, [currentPage, filtered]);
 
-  const handlePriceCommit = () => {
-    setAppliedPriceRange(priceRange);
-    setCurrentPage(1);
-  };
-
-  const clearFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("all");
-    setPriceRange([0, 1500000]);
-    setAppliedPriceRange([0, 1500000]);
-    setCurrentPage(1);
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-white text-neutral-900">
-      <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Image src="/ferrari-logo-png_seeklogo-512505.png" alt="Ferrari logo" width={44} height={44} priority />
-        </div>
-        <nav className="hidden items-center gap-6 text-sm font-medium md:flex text-neutral-800">
-          {[
-            { label: "Home", href: "/" },
-            { label: "Browse", href: "/browse" },
-            { label: "Test Drive", href: "/test-drive" },
-            { label: "More About Ferrari", href: "/more-about" },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="text-neutral-700 transition hover:text-neutral-900">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-3">
-          {session?.user ? (
-            <>
-              <Link
-                href="/orders"
-                className="hidden rounded-md border border-neutral-300 px-3 py-1 text-xs font-semibold text-neutral-800 transition hover:border-neutral-500 md:inline-flex"
-              >
-                Orders
-              </Link>
-              {(session.user as { role?: string }).role === "admin" && (
-                <Link
-                  href="/admin-dashboard"
-                  className="hidden rounded-md border border-neutral-300 px-3 py-1 text-xs font-semibold text-neutral-800 transition hover:border-neutral-500 md:inline-flex"
-                >
-                  Admin
-                </Link>
-              )}
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="hidden rounded-md border border-neutral-300 px-3 py-1 text-xs font-semibold text-neutral-800 transition hover:border-neutral-500 md:inline-flex"
-              >
-                Logout
-              </button>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
-                {session.user.email?.slice(0, 2).toUpperCase()}
-              </div>
-            </>
-          ) : (
-            <Link
-              href="/auth/signin"
-              className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-500"
-            >
-              Sign In
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="flex items-center justify-center rounded-md border border-neutral-300 px-3 py-2 text-neutral-800 shadow-sm transition hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-neutral-300 md:hidden"
-            aria-label="Open menu"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 stroke-current text-neutral-800" role="img">
-              <line x1="4" y1="7" x2="20" y2="7" strokeWidth="2" strokeLinecap="round" />
-              <line x1="4" y1="12" x2="20" y2="12" strokeWidth="2" strokeLinecap="round" />
-              <line x1="4" y1="17" x2="20" y2="17" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
       <div className="border-b border-neutral-200 px-6 py-6 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -162,103 +97,35 @@ export default function BrowsePage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-6 bg-white py-6 px-4 lg:px-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[260px]">
-            <input
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search models..."
-              className="w-full rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-500"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") setCurrentPage(1);
-              }}
-            />
-          </div>
-          <select
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value as typeof typeFilter);
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <FilterSidebar
+            filters={filters}
+            effectiveFilters={effectiveFilters}
+            onChange={setFilter}
+            onClear={() => {
+              clearFilters();
               setCurrentPage(1);
             }}
-            className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
-          >
-            <option value="all">All types</option>
-            <option value="buy">Buy</option>
-            <option value="rent">Rent</option>
-            <option value="both">Buy or rent</option>
-          </select>
+          />
+
+          <div className="flex-1 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+              <div className="text-sm text-neutral-700">
+                Showing {Math.min(total, (currentPage - 1) * ITEMS_PER_PAGE + 1)}-
+                {Math.min(total, currentPage * ITEMS_PER_PAGE)} of {total} results
+              </div>
+              <div className="flex items-center gap-2 text-sm text-neutral-700">
+                <span className="hidden text-neutral-600 sm:inline">Sort</span>
           <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
+                  value={filters.sort}
+                  onChange={(e) => setFilter({ sort: e.target.value as typeof filters.sort })}
+                  className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200"
           >
             <option value="recent">Most recent</option>
             <option value="price-low">Price: low to high</option>
             <option value="price-high">Price: high to low</option>
           </select>
-          <button
-            onClick={() => setFiltersOpen((o) => !o)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-800 hover:border-neutral-400"
-          >
-            {filtersOpen ? "Hide price" : "Price range"}
-          </button>
-          <button
-            onClick={clearFilters}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 hover:border-neutral-400"
-          >
-            Clear
-          </button>
-        </div>
-
-        {filtersOpen && (
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-4">
-            <div className="flex items-center justify-between text-sm text-neutral-700">
-              <div>Price range</div>
-              <div className="flex items-center gap-2 text-xs">
-                <Image src="/SAR.png" alt="SAR" width={18} height={12} className="h-3 w-auto" />
-                <span>
-                  {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()}
-                </span>
               </div>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <input
-                type="range"
-                min={0}
-                max={1500000}
-                step={10000}
-                value={priceRange[0]}
-                onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                className="w-full accent-neutral-900"
-              />
-              <input
-                type="range"
-                min={0}
-                max={1500000}
-                step={10000}
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                className="w-full accent-neutral-900"
-              />
-            </div>
-            <button
-              onClick={handlePriceCommit}
-              className="mt-3 w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 sm:w-auto"
-            >
-              Apply price
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-          <div className="text-sm text-neutral-700">
-            Showing {Math.min(total, (currentPage - 1) * ITEMS_PER_PAGE + 1)}-
-            {Math.min(total, currentPage * ITEMS_PER_PAGE)} of {total} results
-          </div>
-          <div className="text-sm text-neutral-600">Inventory refreshes from Mongo-backed API endpoints.</div>
         </div>
 
         {loading ? (
@@ -296,6 +163,8 @@ export default function BrowsePage() {
           >
             Next
           </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -317,51 +186,37 @@ export default function BrowsePage() {
           </div>
         </div>
       </footer>
-
-      <div
-        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden="true"
-      />
-
-      <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-72 flex-col border-l border-neutral-200 bg-white shadow-xl transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "translate-x-full"}`}
-        aria-label="Sidebar"
-      >
-        <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-          <div className="text-lg font-semibold">Menu</div>
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-md px-2 py-1 text-sm text-neutral-700 transition hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-300"
-          >
-            Close
-          </button>
-        </div>
-        <div className="flex flex-1 items-center justify-center px-5">
-          <Link
-            href="/auth/signin"
-            className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white text-center transition hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-300"
-          >
-            Sign In
-          </Link>
-        </div>
-      </aside>
     </div>
+  );
+}
+
+export default function BrowsePage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-neutral-600">Loading filters…</div>}>
+      <BrowsePageContent />
+    </Suspense>
   );
 }
 
 function Card({ car }: { car: Car }) {
   const priceLabel = `${car.currency} ${car.price.toLocaleString()}`;
   const hasInventory = (car.inventory ?? 0) > 0;
+  const cover = car.images?.[0];
   return (
     <Link
       href={`/browse/${car.slug}`}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-lg"
     >
-      <div className="relative h-44 w-full bg-neutral-100">
-        {car.images?.[0] ? (
-          <Image src={car.images[0]} alt={car.model} fill sizes="(min-width: 1024px) 33vw, 50vw" className="object-cover" />
+      <div className="relative w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
+        {cover ? (
+          <Image
+            src={cover}
+            alt={car.model}
+            fill
+            sizes="(min-width: 1024px) 33vw, 50vw"
+            className="object-cover transition duration-300 group-hover:scale-[1.02]"
+            priority={false}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
         )}

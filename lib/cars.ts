@@ -30,3 +30,4 @@ export const carCatalog: CarSpec[] = [
   { model: "LaFerrari Aperta", price: "≈$2,300,000" },
 ];
 
+

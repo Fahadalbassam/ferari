@@ -79,7 +79,7 @@ export default function Home() {
           style={{ transform: `translateX(-${activeIndex * 100}%)` }}
         >
           {slides.map((src, idx) => (
-            <div key={src} className="relative h-[460px] min-w-full">
+            <div key={src} className="relative h-[510px] min-w-full">
               <Image
                 src={src}
                 alt={`Ferrari slide ${idx + 1}`}
@@ -159,8 +159,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      <main className="flex-1 space-y-10 pb-16" />
 
       <section className="bg-white px-6 pb-16">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 shadow-sm lg:flex-row lg:items-center">

@@ -11,10 +11,13 @@ export async function GET(req: Request) {
   const priceMin = parseNumber(searchParams.get("priceMin"));
   const priceMax = parseNumber(searchParams.get("priceMax"));
   const location = searchParams.get("location") || undefined;
+  const limitParam = parseInt(searchParams.get("limit") || "", 10);
+  const limit = Number.isFinite(limitParam) ? limitParam : 24;
+  const skipParam = parseInt(searchParams.get("skip") || "", 10);
+  const skip = Number.isFinite(skipParam) ? skipParam : 0;
   const sortParam = searchParams.get("sort");
   const sort = sortParam === "price-asc" || sortParam === "price-desc" ? sortParam : "recent";
-  const limit = parseInt(searchParams.get("limit") || "", 10);
-  const skip = parseInt(searchParams.get("skip") || "", 10);
+
   const conditionsParam = searchParams.get("conditions");
   const conditions = conditionsParam
     ? (conditionsParam.split(",").filter(Boolean) as Array<"new" | "used" | "certified">)
@@ -29,13 +32,19 @@ export async function GET(req: Request) {
     priceMax,
     location,
     conditions,
+    limit,
+    skip,
     sort,
-    limit: Number.isFinite(limit) ? limit : undefined,
-    skip: Number.isFinite(skip) ? skip : undefined,
     includeTotal: true,
   });
 
-  return NextResponse.json({ cars, total });
+  return NextResponse.json({
+    cars,
+    total,
+    limit,
+    skip,
+    hasMore: skip + cars.length < total,
+  });
 }
 
 function parseNumber(value: string | null) {

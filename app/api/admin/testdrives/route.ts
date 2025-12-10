@@ -1,30 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { listTestDrives, updateTestDrive, type TestDriveStatus } from "@/lib/models/testdrives";
 import { adjustInventory } from "@/lib/models/cars";
+import { validateAdminSession } from "@/lib/models/admin-sessions";
 
 export const dynamic = "force-dynamic";
 
-async function ensureAdminSession(session: { user?: { id?: string; role?: string } } | null) {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get("admin_session");
-  if (!cookie) return false;
-  try {
-    const parsed = JSON.parse(Buffer.from(cookie.value, "base64").toString());
-    if (!parsed.userId || !parsed.expiresAt) return false;
-    if (Date.now() > parsed.expiresAt) return false;
-    if (!session?.user?.id || parsed.userId !== session.user.id) return false;
-    if ((session.user as { role?: string }).role !== "admin") return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function GET(req: Request) {
   const session = await getServerAuthSession();
-  if (!(await ensureAdminSession(session as { user?: { id?: string; role?: string } } | null))) {
+  if (!(await validateAdminSession(session as { user?: { id?: string; accountType?: string } } | null))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,7 +26,7 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   const session = await getServerAuthSession();
-  if (!(await ensureAdminSession(session as { user?: { id?: string; role?: string } } | null))) {
+  if (!(await validateAdminSession(session as { user?: { id?: string; accountType?: string } } | null))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

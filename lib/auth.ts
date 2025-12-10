@@ -70,12 +70,60 @@ export const authOptions = {
   adapter: MongoDBAdapter(clientPromise, {
     databaseName: process.env.MONGODB_DB,
   }),
+  // Allow linking OAuth accounts to existing emails (e.g., credentials) to avoid OAuthAccountNotLinked errors.
+  allowDangerousEmailAccountLinking: true,
   session: {
     strategy: "database",
     maxAge: 60 * 60 * 4, // 4 hours
   },
   providers,
   callbacks: {
+    // Link OAuth logins to existing users by email to avoid OAuthAccountNotLinked.
+    async signIn({
+      user,
+      account,
+      profile,
+    }: {
+      user: AppUser | null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      account?: any;
+      profile?: { email?: string | null } | null;
+    }) {
+      if (account?.provider && account.provider !== "credentials" && profile?.email) {
+        try {
+          const db = await getDb();
+          const email = profile.email.toLowerCase();
+          const existing = await db.collection("users").findOne({ email });
+          if (existing?._id) {
+            const userId = existing._id.toString();
+            (user as AppUser | null | undefined)!.id = userId;
+            // Upsert the account record to ensure it links to the existing user.
+            await db.collection("accounts").updateOne(
+              { provider: account.provider, providerAccountId: account.providerAccountId },
+              {
+                $set: {
+                  userId: existing._id,
+                  type: account.type,
+                  access_token: account.access_token,
+                  id_token: account.id_token,
+                  token_type: account.token_type,
+                  scope: account.scope,
+                  expires_at: account.expires_at,
+                  refresh_token: account.refresh_token,
+                  session_state: account.session_state,
+                  updatedAt: new Date(),
+                },
+                $setOnInsert: { createdAt: new Date() },
+              },
+              { upsert: true },
+            );
+          }
+        } catch (err) {
+          console.error("signIn linking error", err);
+        }
+      }
+      return true;
+    },
     async session({
       session,
       user,
@@ -129,16 +177,54 @@ export const authOptions = {
     signIn: "/auth/signin",
   },
   events: {
-    // For OAuth sign-ins, mark the email as verified so they can be treated as trusted.
+    // On sign-in, for OAuth mark email verified, and send a one-time welcome email via Resend if not sent.
     async signIn({ user, account }: { user?: AppUser | null; account?: { provider?: string } | null }) {
-      if (!user?.id || !account?.provider || account.provider === "credentials") return;
+      if (!user?.id) return;
       try {
         const db = await getDb();
-        await db
-          .collection("users")
-          .updateOne({ _id: new ObjectId(user.id) }, { $set: { emailVerified: new Date(), updatedAt: new Date() } });
+        const userId = new ObjectId(user.id);
+        const doc = await db.collection("users").findOne({ _id: userId });
+
+        // Mark email verified for OAuth sign-ins.
+        if (account?.provider && account.provider !== "credentials") {
+          await db
+            .collection("users")
+            .updateOne(
+              { _id: userId },
+              { $set: { emailVerified: new Date(), updatedAt: new Date() } },
+              { upsert: false },
+            );
+        }
+
+        // One-time welcome email via Resend.
+        const resendApiKey = process.env.RESEND_API_KEY;
+        const resendFrom = process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM;
+        const email = (doc as { email?: string } | null)?.email;
+        const alreadySent = (doc as { welcomeSent?: boolean } | null)?.welcomeSent;
+        if (resendApiKey && resendFrom && email && !alreadySent) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: resendFrom,
+                to: email,
+                subject: "Welcome to Ferrari",
+                text: "Welcome to Ferrari! We’re excited to have you on board.",
+              }),
+            });
+            await db
+              .collection("users")
+              .updateOne({ _id: userId }, { $set: { welcomeSent: true, updatedAt: new Date() } });
+          } catch (err) {
+            console.error("welcome email failed", err);
+          }
+        }
       } catch (err) {
-        console.error("signIn event update emailVerified failed", err);
+        console.error("signIn event handling failed", err);
       }
     },
   },
