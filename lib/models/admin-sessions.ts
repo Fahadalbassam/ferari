@@ -67,7 +67,27 @@ export async function deleteAdminSessionsForUser(userId: string) {
   await db.collection<AdminSessionRecord>("admin_sessions").deleteMany({ userId: new ObjectId(userId) });
 }
 
-export async function validateAdminSession(session: { user?: { id?: string; accountType?: string } } | null) {
+export async function validateAdminSession(session: { user?: { id?: string; accountType?: string; role?: string; email?: string } } | null) {
+  // Fast path: role/accountType already set on the session
+  if (session?.user?.role === "admin" || session?.user?.accountType === "admin") return true;
+
+  // If we have a user id, try to fetch role from DB
+  if (session?.user?.id) {
+    try {
+      const db = await getDb();
+      const user = await db.collection("users").findOne({ _id: new ObjectId(session.user.id) });
+      const accountType =
+        (user as { accountType?: string; role?: string } | null)?.accountType ||
+        (user as { role?: string } | null)?.role;
+      if (accountType === "admin") return true;
+      if ((user as { isBanned?: boolean } | null)?.isBanned) return false;
+      if ((user as { isActive?: boolean } | null)?.isActive === false) return false;
+    } catch {
+      // fall through to cookie validation
+    }
+  }
+
+  // Legacy cookie validation path
   if (!session?.user?.id) return false;
   const cookie = await readAdminCookie();
   if (!cookie || cookie.userId !== session.user.id) return false;

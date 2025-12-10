@@ -17,6 +17,8 @@ type Car = {
   price: number;
   currency: string;
   type: "buy" | "rent" | "both";
+  category?: string;
+  year?: number;
   colors?: string[];
   images?: string[];
   inventory?: number;
@@ -156,7 +158,10 @@ export default function PostDetail() {
                   <h1 className="text-2xl font-semibold">{car.model}</h1>
                 </div>
                 <div className="flex items-center gap-3 text-lg font-semibold">
-                  <span>
+                  <span className="flex items-center gap-2">
+                    {(car.currency || "").toUpperCase() === "SAR" && (
+                      <Image src="/SAR.png" alt="SAR" width={18} height={12} className="h-4 w-auto" />
+                    )}
                     {car.currency} {car.price.toLocaleString()}
                   </span>
                   <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-800">
@@ -250,7 +255,9 @@ export default function PostDetail() {
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-700">
               <div className="mb-2 text-base font-semibold text-neutral-900">Vehicle highlights</div>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Type: {car.type}</li>
+                <li>Listing: {car.type}</li>
+                <li>Car type: {car.category ?? "general"}</li>
+                <li>Year: {car.year ?? "N/A"}</li>
                 <li>Inventory: {car.inventory ?? 0}</li>
                 <li>Slug: {car.slug}</li>
               </ul>

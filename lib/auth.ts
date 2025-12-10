@@ -72,8 +72,9 @@ export const authOptions = {
   }),
   // Allow linking OAuth accounts to existing emails (e.g., credentials) to avoid OAuthAccountNotLinked errors.
   allowDangerousEmailAccountLinking: true,
+  // Use JWT sessions to avoid DB session cookie edge cases during development.
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 60 * 60 * 4, // 4 hours
   },
   providers,

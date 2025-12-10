@@ -34,6 +34,10 @@ export default function FilterSidebar({
       `${effectiveFilters.priceRange[0].toLocaleString()} - ${effectiveFilters.priceRange[1].toLocaleString()}`,
     [effectiveFilters.priceRange],
   );
+  const yearLabel = useMemo(
+    () => `${effectiveFilters.yearRange[0]} - ${effectiveFilters.yearRange[1]}`,
+    [effectiveFilters.yearRange],
+  );
 
   return (
     <>
@@ -150,6 +154,40 @@ export default function FilterSidebar({
               </div>
             </Section>
 
+            <Section title="Car type">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "All", value: "all" },
+                  { label: "Sedan", value: "sedan" },
+                  { label: "SUV", value: "suv" },
+                  { label: "Coupe", value: "coupe" },
+                  { label: "Convertible", value: "convertible" },
+                  { label: "EV", value: "ev" },
+                  { label: "Hybrid", value: "hybrid" },
+                  { label: "Luxury", value: "luxury" },
+                  { label: "Off-road", value: "offroad" },
+                  { label: "Truck", value: "truck" },
+                  { label: "Van", value: "van" },
+                  { label: "General", value: "general" },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className={`cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition hover:border-neutral-400 ${filters.carType === option.value ? "border-neutral-900 text-neutral-900" : "border-neutral-200 text-neutral-700"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="car-type"
+                      value={option.value}
+                      checked={filters.carType === option.value}
+                      onChange={() => onChange({ carType: option.value as Filters["carType"] })}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </Section>
+
             <Section title="Availability">
               <label className="flex items-center gap-3 text-sm text-neutral-800">
                 <input
@@ -233,6 +271,41 @@ export default function FilterSidebar({
               </div>
             </Section>
 
+            <Section title="Year range" hint={yearLabel}>
+              <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-neutral-600">Min year</label>
+                  <input
+                    type="number"
+                    value={filters.yearRange[0]}
+                    onChange={(e) =>
+                      onChange({
+                        yearRange: [Number(e.target.value), filters.yearRange[1]],
+                      })
+                    }
+                    min={1980}
+                    max={filters.yearRange[1]}
+                    className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-neutral-600">Max year</label>
+                  <input
+                    type="number"
+                    value={filters.yearRange[1]}
+                    onChange={(e) =>
+                      onChange({
+                        yearRange: [filters.yearRange[0], Number(e.target.value)],
+                      })
+                    }
+                    min={filters.yearRange[0]}
+                    max={new Date().getFullYear() + 1}
+                    className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+                  />
+                </div>
+              </div>
+            </Section>
+
             <Section title="Sort">
               <select
                 value={filters.sort}
@@ -292,7 +365,9 @@ function badgeCount(filters: Filters) {
   if (filters.search) count += 1;
   if (filters.type !== "all") count += 1;
   if (filters.availability !== "all") count += 1;
+  if (filters.carType !== "all") count += 1;
   if (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 1_500_000) count += 1;
+  if (filters.yearRange[0] !== 1990 || filters.yearRange[1] !== new Date().getFullYear() + 1) count += 1;
   if (filters.sort !== "recent") count += 1;
   return count;
 }

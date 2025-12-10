@@ -18,6 +18,7 @@ export type CarRecord = {
   reviewsCount?: number;
   colors: string[];
   images: string[];
+  details?: string;
   inventory: number;
   status: "active" | "inactive";
   createdAt: Date;
@@ -32,8 +33,11 @@ export type CarQueryOptions = {
   search?: string;
   priceMin?: number;
   priceMax?: number;
+  yearMin?: number;
+  yearMax?: number;
   conditions?: Array<"new" | "used" | "certified">;
   location?: string;
+  inStockOnly?: boolean;
   limit?: number;
   skip?: number;
   sort?: "recent" | "price-asc" | "price-desc";
@@ -59,11 +63,19 @@ export async function queryCars(options: CarQueryOptions & { includeTotal?: bool
     if (options.priceMin !== undefined) (query.price as Record<string, number>).$gte = options.priceMin;
     if (options.priceMax !== undefined) (query.price as Record<string, number>).$lte = options.priceMax;
   }
+  if (options.yearMin !== undefined || options.yearMax !== undefined) {
+    query.year = {};
+    if (options.yearMin !== undefined) (query.year as Record<string, number>).$gte = options.yearMin;
+    if (options.yearMax !== undefined) (query.year as Record<string, number>).$lte = options.yearMax;
+  }
   if (options.conditions?.length) {
     query.condition = { $in: options.conditions };
   }
   if (options.location) {
     query.location = { $regex: options.location, $options: "i" };
+  }
+  if (options.inStockOnly) {
+    query.inventory = { $gt: 0 };
   }
   if (options.search) {
     const regex = { $regex: options.search, $options: "i" };
@@ -124,6 +136,7 @@ export async function createCar(input: {
   reviewsCount?: number;
   colors?: string[];
   images?: string[];
+  details?: string;
   inventory?: number;
   status?: "active" | "inactive";
 }) {
@@ -137,13 +150,14 @@ export async function createCar(input: {
     type: input.type,
     category: input.category ?? DEFAULT_CATEGORY,
     trim: input.trim,
-    year: input.year,
+    year: input.year ?? new Date().getFullYear(),
     location: input.location,
     condition: input.condition,
     rating: input.rating,
     reviewsCount: input.reviewsCount,
     colors: input.colors ?? [],
     images: input.images ?? [],
+    details: input.details,
     inventory: input.inventory ?? 0,
     status: input.status ?? "active",
     createdAt: new Date(),

@@ -106,7 +106,7 @@ export default function SignInPage() {
     }
     setRegisterMessage("Account created. Logging you in...");
     const loginRes = await signIn("credentials", {
-      redirect: false,
+      redirect: true,
       identifier: registerEmail,
       password: registerPassword,
       callbackUrl: "/",
@@ -116,7 +116,6 @@ export default function SignInPage() {
       setMode("signin");
       return;
     }
-    window.location.href = "/";
   };
 
   const handleSendOtp = async () => {

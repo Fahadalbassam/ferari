@@ -23,18 +23,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
-  const { model, price, currency, type, colors, images, inventory, status } = body || {};
-  if (!model || !price || !currency || !type) {
+  const { model, price, currency, type, colors, images, inventory, status, details, year, category } = body || {};
+  const numericYear = Number(year);
+  const numericPrice = Number(price);
+  const numericInventory = Number(inventory ?? 0);
+  if (
+    !model ||
+    !currency ||
+    !type ||
+    !category ||
+    !Number.isFinite(numericYear) ||
+    numericYear < 1900 ||
+    !Number.isFinite(numericPrice) ||
+    numericPrice <= 0 ||
+    !Number.isFinite(numericInventory) ||
+    numericInventory < 0
+  ) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
   const car = await createCar({
     model,
-    price: Number(price),
+    price: numericPrice,
     currency,
     type,
+    year: numericYear,
+    category,
     colors: colors ?? [],
     images: images ?? [],
-    inventory: inventory ?? 0,
+    details,
+    inventory: numericInventory ?? 0,
     status: status ?? "active",
   });
   return NextResponse.json({ car });

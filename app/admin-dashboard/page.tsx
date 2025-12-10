@@ -39,6 +39,8 @@ type Car = {
   price: number;
   currency: string;
   type: string;
+  category: string;
+  year?: number;
   inventory: number;
   status: string;
 };
@@ -58,11 +60,16 @@ export default function AdminDashboardPage() {
   const [newCar, setNewCar] = useState({
     model: "",
     price: "",
-    currency: "USD",
+    currency: "SAR",
     type: "buy",
+    category: "general",
+    year: String(new Date().getFullYear()),
     inventory: "0",
   });
   const [newCarImages, setNewCarImages] = useState<string[]>([]);
+  const [newCarDetails, setNewCarDetails] = useState("");
+  const [creatingCar, setCreatingCar] = useState(false);
+  const [createMessage, setCreateMessage] = useState<string | null>(null);
 
   const fetchVerify = async () => {
     setError(null);
@@ -156,28 +163,69 @@ export default function AdminDashboardPage() {
 
   const handleCreateCar = async () => {
     setError(null);
-    const payload = {
-      model: newCar.model,
-      price: Number(newCar.price || 0),
-      currency: newCar.currency,
-      type: newCar.type as "buy" | "rent" | "both",
-      inventory: Number(newCar.inventory || 0),
-      images: newCarImages,
-    };
-    const res = await fetch("/api/admin/cars", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Failed to create car");
+    setCreateMessage(null);
+    const numericPrice = Number(String(newCar.price).replace(/,/g, "").trim());
+    const numericYear = Number(newCar.year);
+    const numericInventory = Number(String(newCar.inventory || "0").replace(/,/g, "").trim() || "0");
+    if (!newCar.model || !newCar.currency || !newCar.category || !newCar.year || !newCar.type) {
+      setCreateMessage("Please fill model, currency, category, year, and type.");
       return;
     }
-    const data = await res.json();
-    setCars((prev) => [data.car, ...prev]);
-    setNewCar({ model: "", price: "", currency: "USD", type: "buy", inventory: "0" });
-    setNewCarImages([]);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      setCreateMessage("Price must be a valid number greater than 0 (no commas).");
+      return;
+    }
+    if (!Number.isFinite(numericYear) || numericYear < 1900) {
+      setCreateMessage("Year must be a valid number (>= 1900).");
+      return;
+    }
+    if (!Number.isFinite(numericInventory) || numericInventory < 0) {
+      setCreateMessage("Inventory must be 0 or more.");
+      return;
+    }
+    setCreatingCar(true);
+    const payload = {
+      model: newCar.model,
+      price: numericPrice,
+      currency: newCar.currency,
+      type: newCar.type as "buy" | "rent" | "both",
+      category: newCar.category,
+      year: numericYear,
+      inventory: numericInventory,
+      images: newCarImages.slice(0, 5),
+      details: newCarDetails || undefined,
+    };
+    try {
+      const res = await fetch("/api/admin/cars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to create car");
+      }
+      const data = await res.json();
+      setCars((prev) => [data.car, ...prev]);
+      setNewCar({
+        model: "",
+        price: "",
+        currency: "SAR",
+        type: "buy",
+        category: "general",
+        year: String(new Date().getFullYear()),
+        inventory: "0",
+      });
+      setNewCarImages([]);
+      setNewCarDetails("");
+      setCreateMessage("Car posted successfully.");
+    } catch (err) {
+      const message = (err as Error).message || "Failed to create car";
+      setError(message);
+      setCreateMessage(message);
+    } finally {
+      setCreatingCar(false);
+    }
   };
 
   const handleOrderStatus = async (id: string, nextStatus: OrderStatus) => {
@@ -311,11 +359,20 @@ export default function AdminDashboardPage() {
                       placeholder="Currency (USD/SAR)"
                       className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
                     />
+                    <input
+                      value={newCar.year}
+                      onChange={(e) => setNewCar((p) => ({ ...p, year: e.target.value }))}
+                      placeholder="Year"
+                      type="number"
+                      min={1980}
+                      max={new Date().getFullYear() + 1}
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    />
                     <div className="sm:col-span-2 space-y-1">
-                      <label className="text-xs text-white/70">Images (webp, png, jpg, jpeg)</label>
+                      <label className="text-xs text-white/70">Images (webp, png, jpg, jpeg, avif)</label>
                       <input
                         type="file"
-                        accept=".webp,.png,.jpg,.jpeg,image/webp,image/png,image/jpeg"
+                        accept=".webp,.png,.jpg,.jpeg,.avif,image/webp,image/png,image/jpeg,image/avif"
                         multiple
                         onChange={async (e) => {
                           const files = Array.from(e.target.files || []);
@@ -338,6 +395,23 @@ export default function AdminDashboardPage() {
                       )}
                     </div>
                     <select
+                      value={newCar.category}
+                      onChange={(e) => setNewCar((p) => ({ ...p, category: e.target.value }))}
+                      className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                    >
+                      <option value="general">Type: General</option>
+                      <option value="sedan">Type: Sedan</option>
+                      <option value="suv">Type: SUV</option>
+                      <option value="truck">Type: Truck</option>
+                      <option value="coupe">Type: Coupe</option>
+                      <option value="convertible">Type: Convertible</option>
+                      <option value="ev">Type: EV</option>
+                      <option value="hybrid">Type: Hybrid</option>
+                      <option value="luxury">Type: Luxury</option>
+                      <option value="offroad">Type: Off-road</option>
+                      <option value="van">Type: Van</option>
+                    </select>
+                    <select
                       value={newCar.type}
                       onChange={(e) => setNewCar((p) => ({ ...p, type: e.target.value }))}
                       className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
@@ -352,13 +426,24 @@ export default function AdminDashboardPage() {
                       placeholder="Inventory"
                       className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
                     />
+                    <textarea
+                      value={newCarDetails}
+                      onChange={(e) => setNewCarDetails(e.target.value)}
+                      placeholder="Details / description"
+                      className="sm:col-span-2 w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
+                      rows={3}
+                    />
                   </div>
                   <button
                     onClick={handleCreateCar}
-                    className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/80"
+                    disabled={creatingCar}
+                    className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/80 disabled:opacity-60"
                   >
-                    Post car to browse
+                    {creatingCar ? "Posting…" : "Post car to browse"}
                   </button>
+                  {createMessage && (
+                    <div className="text-xs text-white/80">{createMessage}</div>
+                  )}
                 </div>
                 <div className="space-y-2 text-sm text-white/70">
                   <div className="font-semibold text-white">Guidelines</div>
@@ -374,8 +459,10 @@ export default function AdminDashboardPage() {
                   <thead className="bg-white/5 text-white/70">
                     <tr>
                       <th className="px-4 py-2 text-left">Model</th>
+                      <th className="px-4 py-2 text-left">Year</th>
                       <th className="px-4 py-2 text-left">Price</th>
                       <th className="px-4 py-2 text-left">Type</th>
+                      <th className="px-4 py-2 text-left">Listing</th>
                       <th className="px-4 py-2 text-left">Inventory</th>
                       <th className="px-4 py-2 text-left">Status</th>
                     </tr>
@@ -384,9 +471,11 @@ export default function AdminDashboardPage() {
                     {cars.map((c) => (
                       <tr key={c._id} className="border-t border-white/5">
                         <td className="px-4 py-2">{c.model}</td>
+                        <td className="px-4 py-2">{c.year ?? "—"}</td>
                         <td className="px-4 py-2">
                           {c.currency} {c.price.toLocaleString()}
                         </td>
+                        <td className="px-4 py-2">{c.category}</td>
                         <td className="px-4 py-2">{c.type}</td>
                         <td className="px-4 py-2">{c.inventory}</td>
                         <td className="px-4 py-2">
@@ -396,7 +485,7 @@ export default function AdminDashboardPage() {
                     ))}
                     {!cars.length && (
                       <tr>
-                        <td className="px-4 py-3 text-center text-white/60" colSpan={5}>
+                        <td className="px-4 py-3 text-center text-white/60" colSpan={7}>
                           No cars posted yet
                         </td>
                       </tr>

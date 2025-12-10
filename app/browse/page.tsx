@@ -13,6 +13,8 @@ type Car = {
   price: number;
   currency: string;
   type: "buy" | "rent" | "both";
+  category?: string;
+  year?: number;
   images?: string[];
   inventory?: number;
 };
@@ -55,6 +57,8 @@ function BrowsePageContent() {
     effectiveFilters.type,
     effectiveFilters.priceRange,
     effectiveFilters.availability,
+    effectiveFilters.carType,
+    effectiveFilters.yearRange,
   ]);
 
   const filtered = useMemo(() => {
@@ -70,6 +74,13 @@ function BrowsePageContent() {
           c.price >= effectiveFilters.priceRange[0] &&
           c.price <= effectiveFilters.priceRange[1],
       )
+      .filter((c) =>
+        effectiveFilters.carType === "all" ? true : (c.category ?? "general") === effectiveFilters.carType,
+      )
+      .filter((c) => {
+        if (!c.year) return true;
+        return c.year >= effectiveFilters.yearRange[0] && c.year <= effectiveFilters.yearRange[1];
+      })
       .filter((c) =>
         effectiveFilters.availability === "in-stock" ? (c.inventory ?? 0) > 0 : true,
       )
@@ -202,6 +213,7 @@ export default function BrowsePage() {
 }
 
 function Card({ car }: { car: Car }) {
+  const isSar = (car.currency || "").toUpperCase() === "SAR";
   const priceLabel = `${car.currency} ${car.price.toLocaleString()}`;
   const hasInventory = (car.inventory ?? 0) > 0;
   const cover = car.images?.[0];
@@ -226,11 +238,16 @@ function Card({ car }: { car: Car }) {
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="text-base font-semibold line-clamp-2">{car.model}</div>
+          <div className="flex flex-col gap-1">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">{car.category ?? "general"}</div>
+            <div className="text-base font-semibold line-clamp-2">{car.model}</div>
+            {car.year ? <div className="text-xs text-neutral-600">Year {car.year}</div> : null}
+          </div>
           <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-800">{car.type}</span>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-lg font-semibold">
+            {isSar && <Image src="/SAR.png" alt="SAR" width={18} height={12} className="h-4 w-auto" />}
             <span>{priceLabel}</span>
           </div>
           <div className="text-xs text-neutral-600">{hasInventory ? `In stock: ${car.inventory ?? 0}` : "Out of stock"}</div>

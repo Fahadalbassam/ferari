@@ -5,12 +5,15 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const category = searchParams.get("category") || undefined;
   const type = (searchParams.get("type") as "buy" | "rent" | "both" | null) || undefined;
   const search = searchParams.get("q") || undefined;
   const priceMin = parseNumber(searchParams.get("priceMin"));
   const priceMax = parseNumber(searchParams.get("priceMax"));
   const location = searchParams.get("location") || undefined;
+  const category = searchParams.get("category") || undefined;
+  const yearMin = parseNumber(searchParams.get("yearMin"));
+  const yearMax = parseNumber(searchParams.get("yearMax"));
+  const inStockOnly = searchParams.get("availability") === "in-stock";
   const sortParam = searchParams.get("sort");
   const sort = sortParam === "price-asc" || sortParam === "price-desc" ? sortParam : "recent";
   const limit = parseInt(searchParams.get("limit") || "", 10);
@@ -22,12 +25,15 @@ export async function GET(req: Request) {
 
   const { cars, total } = await queryCars({
     status: "active",
-    category,
     type,
     search,
     priceMin,
     priceMax,
     location,
+    category,
+    yearMin,
+    yearMax,
+    inStockOnly,
     conditions,
     sort,
     limit: Number.isFinite(limit) ? limit : undefined,
