@@ -8,7 +8,7 @@ export type Filters = {
   type: "all" | "buy" | "rent" | "both";
   priceRange: [number, number];
   availability: "all" | "in-stock";
-  carType: "all" | "sedan" | "suv" | "truck" | "coupe" | "convertible" | "ev" | "hybrid" | "luxury" | "offroad" | "van" | "general";
+  carType: "all" | "berlinetta" | "spider" | "gt" | "track" | "icona" | "special" | "classic" | "general";
   yearRange: [number, number];
   sort: "recent" | "price-low" | "price-high";
 };
@@ -50,16 +50,13 @@ export function useFilters() {
       type: type === "buy" || type === "rent" || type === "both" ? type : "all",
       availability: availability === "in-stock" ? "in-stock" : "all",
       carType:
-        carType === "sedan" ||
-        carType === "suv" ||
-        carType === "truck" ||
-        carType === "coupe" ||
-        carType === "convertible" ||
-        carType === "ev" ||
-        carType === "hybrid" ||
-        carType === "luxury" ||
-        carType === "offroad" ||
-        carType === "van" ||
+        carType === "berlinetta" ||
+        carType === "spider" ||
+        carType === "gt" ||
+        carType === "track" ||
+        carType === "icona" ||
+        carType === "special" ||
+        carType === "classic" ||
         carType === "general"
           ? carType
           : "all",

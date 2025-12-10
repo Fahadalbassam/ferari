@@ -14,14 +14,23 @@ export default function Home() {
 
   const slides = useMemo(
     () => [
-      "/carousel.webp",
-      "/carousel1.jpg",
-      "/carousel2.jpg",
-      "/carousel3.webp",
-      "/carousel5.jpg",
-      "/carousel6.png",
-      "/carousel8.webp",
-      "/carousel9.webp",
+      "/carouselimages/5db98533900e4a3e9eba6c17-ferrari-458-italia-dynamics-focus-1.avif",
+      "/carouselimages/5dc965d13378a829c00a67b8-ferrari-dino-206-gt-1967-prototype-desk.avif",
+      "/carouselimages/5dd3c33ff8fc7b0aa9067377-ferrari-roma-design-focus-3.avif",
+      "/carouselimages/66d72044dedb2b00119607fb-1995_f50_hero-image.avif",
+      "/carouselimages/66d72815dedb2b00119607ff-1995_f50_image-01.avif",
+      "/carouselimages/66d72abbdedb2b0011960803-1995_f50_image-03.avif",
+      "/carouselimages/66d72c85db6d16001154cfd2-1995_f50_image-04.avif",
+      "/carouselimages/68c02d502dafb10021dd65b2-ferrari-849-testarossa-spider-figurino-menu.avif",
+      "/carouselimages/carousel.webp",
+      "/carouselimages/carousel1.jpg",
+      "/carouselimages/carousel3.webp",
+      "/carouselimages/carousel5.jpg",
+      "/carouselimages/carousel6.png",
+      "/carouselimages/WhatsApp%20Image%202025-12-10%20at%2016.29.17_100de3ee.jpg",
+      "/carouselimages/WhatsApp%20Image%202025-12-10%20at%2016.29.17_8285ea73.jpg",
+      "/carouselimages/WhatsApp%20Image%202025-12-10%20at%2016.29.18_2c836ac1.jpg",
+      "/carouselimages/WhatsApp%20Image%202025-12-10%20at%2016.29.29_36fefb1c.jpg",
     ],
     [],
   );
@@ -104,13 +113,13 @@ export default function Home() {
             aria-hidden
           >
             <Image
-              src="/FERRARIFACE.png"
+              src="/ferariface.png"
               alt="Ferrari face"
-              width={1200}
-              height={600}
+              width={1400}
+              height={700}
               className="pointer-events-none select-none object-contain"
               style={{
-                transform: `translate(-10px, ${70 - faceProgress * 140}px) rotateX(-22deg) rotateZ(-3deg) scale(${0.6 + faceProgress * 0.45})`,
+                transform: `translate(-10px, ${60 - faceProgress * 120}px) rotateX(-16deg) rotateZ(-2deg) scale(${0.7 + faceProgress * 0.4})`,
                 transition: "transform 0.16s ease-out",
               }}
               priority
@@ -160,9 +169,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white px-6 pb-16">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 shadow-sm lg:flex-row lg:items-center">
-          <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-neutral-200 bg-white">
+      <section className="bg-white px-6 pb-20 pt-6">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-8 shadow-sm lg:flex-row lg:items-center lg:gap-10">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow">
             <Image
               src={session?.user ? "/Ferrari Test drive.jpg" : "/Join the family.jpg"}
               alt={session?.user ? "Ferrari Test Drive" : "Join the family"}
@@ -172,11 +181,11 @@ export default function Home() {
               priority={false}
             />
           </div>
-          <div className="flex-1 space-y-4">
-            <h2 className="text-2xl font-bold text-neutral-900">
+          <div className="flex-1 space-y-5">
+            <h2 className="text-3xl font-bold text-neutral-900">
               {session?.user ? "Feel the drive before it's yours" : "Join the Ferrari family"}
             </h2>
-            <p className="text-sm leading-6 text-neutral-700">
+            <p className="text-base leading-7 text-neutral-700">
               {session?.user
                 ? "Book a test drive and experience the Ferrari you could be driving—performance, sound, and heritage in one lap."
                 : "Become part of the Ferrarista community. Get exclusive invites, model news, and priority access to launches, test drives, and events."}

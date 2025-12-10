@@ -23,9 +23,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
-  const { model, price, currency, type, colors, images, inventory, status, details, year, category } = body || {};
+  const { model, price, currency, type, colors, images, inventory, status, details, year, category, rentalPrice } = body || {};
   const numericYear = Number(year);
   const numericPrice = Number(price);
+  const computedRental = rentalPrice !== undefined ? Number(rentalPrice) : Math.round(numericPrice * 0.05);
   const numericInventory = Number(inventory ?? 0);
   if (
     !model ||
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
     numericYear < 1900 ||
     !Number.isFinite(numericPrice) ||
     numericPrice <= 0 ||
+    !Number.isFinite(computedRental) ||
+    computedRental < 0 ||
     !Number.isFinite(numericInventory) ||
     numericInventory < 0
   ) {
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest) {
     details,
     inventory: numericInventory ?? 0,
     status: status ?? "active",
+    rentalPrice: computedRental,
   });
   return NextResponse.json({ car });
 }

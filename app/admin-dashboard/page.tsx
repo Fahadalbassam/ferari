@@ -10,6 +10,7 @@ type TestDriveStatus = "new" | "confirmed" | "completed" | "cancelled";
 
 const ORDER_STATUSES: OrderStatus[] = ["pending", "paid", "shipped", "delivered", "cancelled"];
 const TD_STATUSES: TestDriveStatus[] = ["new", "confirmed", "completed", "cancelled"];
+const RENT_RATE = 0.05;
 
 type Order = {
   id: string;
@@ -38,8 +39,9 @@ type Car = {
   _id: string;
   model: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
-  type: string;
+  type: "buy" | "rent" | "both";
   category: string;
   year?: number;
   inventory: number;
@@ -64,7 +66,7 @@ export default function AdminDashboardPage() {
     price: "",
     currency: "SAR",
     type: "buy",
-    category: "general",
+    category: "berlinetta",
     year: String(new Date().getFullYear()),
     inventory: "0",
   });
@@ -127,6 +129,17 @@ export default function AdminDashboardPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  useEffect(() => {
+    if (!editingCarId || !editDraft) return;
+    if (editDraft.type === "rent" || editDraft.type === "both") {
+      const basePrice = Number(editDraft.price ?? 0);
+      const derivedRental = Math.round(basePrice * RENT_RATE);
+      if (Number.isFinite(derivedRental) && editDraft.rentalPrice !== derivedRental) {
+        setEditDraft((prev) => (prev ? { ...prev, rentalPrice: derivedRental } : prev));
+      }
+    }
+  }, [editDraft, editingCarId]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -191,9 +204,11 @@ export default function AdminDashboardPage() {
       return;
     }
     setCreatingCar(true);
+    const rentalPrice = Math.round(numericPrice * RENT_RATE);
     const payload = {
       model: newCar.model,
       price: numericPrice,
+      rentalPrice,
       currency: newCar.currency,
       type: newCar.type as "buy" | "rent" | "both",
       category: newCar.category,
@@ -240,6 +255,7 @@ export default function AdminDashboardPage() {
     setEditDraft({
       ...car,
       price: car.price,
+      rentalPrice: car.rentalPrice ?? Math.round(car.price * RENT_RATE),
       inventory: car.inventory,
     });
     setEditMessage(null);
@@ -267,6 +283,7 @@ export default function AdminDashboardPage() {
           type: editDraft.type,
           category: editDraft.category,
           year: editDraft.year,
+          rentalPrice: editDraft.rentalPrice,
           inventory: editDraft.inventory,
           status: editDraft.status,
         }),
@@ -450,8 +467,8 @@ export default function AdminDashboardPage() {
                       max={new Date().getFullYear() + 1}
                       className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
                     />
-                    <div className="sm:col-span-2 space-y-1">
-                      <label className="text-xs text-white/70">Images (webp, png, jpg, jpeg, avif)</label>
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-xs text-white/70">Images (webp, png, jpg, jpeg, avif)</label>
                       <input
                         type="file"
                         accept=".webp,.png,.jpg,.jpeg,.avif,image/webp,image/png,image/jpeg,image/avif"
@@ -481,17 +498,14 @@ export default function AdminDashboardPage() {
                       onChange={(e) => setNewCar((p) => ({ ...p, category: e.target.value }))}
                       className="w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white"
                     >
+                      <option value="berlinetta">Type: Berlinetta (mid-engine)</option>
+                      <option value="spider">Type: Spider / Aperta</option>
+                      <option value="gt">Type: GT / 2+2</option>
+                      <option value="track">Type: Track / Pista</option>
+                      <option value="icona">Type: Icona / Limited</option>
+                      <option value="special">Type: Special Series</option>
+                      <option value="classic">Type: Classic</option>
                       <option value="general">Type: General</option>
-                      <option value="sedan">Type: Sedan</option>
-                      <option value="suv">Type: SUV</option>
-                      <option value="truck">Type: Truck</option>
-                      <option value="coupe">Type: Coupe</option>
-                      <option value="convertible">Type: Convertible</option>
-                      <option value="ev">Type: EV</option>
-                      <option value="hybrid">Type: Hybrid</option>
-                      <option value="luxury">Type: Luxury</option>
-                      <option value="offroad">Type: Off-road</option>
-                      <option value="van">Type: Van</option>
                     </select>
                     <select
                       value={newCar.type}
@@ -583,6 +597,12 @@ export default function AdminDashboardPage() {
                                   className="w-20 rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
                                 />
                               </div>
+                              {(editDraft?.type === "rent" || editDraft?.type === "both") && (
+                                <div className="mt-1 text-xs text-white/70">
+                                  Rent ({Math.round(RENT_RATE * 100)}%): {editDraft?.currency ?? ""}{" "}
+                                  {(editDraft?.rentalPrice ?? Math.round((editDraft?.price ?? 0) * RENT_RATE)).toLocaleString()}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-2">
                               <select
@@ -590,23 +610,20 @@ export default function AdminDashboardPage() {
                                 onChange={(e) => setEditDraft((p) => ({ ...(p || {}), category: e.target.value }))}
                                 className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
                               >
+                                <option value="berlinetta">Berlinetta (mid-engine)</option>
+                                <option value="spider">Spider / Aperta</option>
+                                <option value="gt">GT / 2+2</option>
+                                <option value="track">Track / Pista</option>
+                                <option value="icona">Icona / Limited</option>
+                                <option value="special">Special Series</option>
+                                <option value="classic">Classic</option>
                                 <option value="general">General</option>
-                                <option value="sedan">Sedan</option>
-                                <option value="suv">SUV</option>
-                                <option value="truck">Truck</option>
-                                <option value="coupe">Coupe</option>
-                                <option value="convertible">Convertible</option>
-                                <option value="ev">EV</option>
-                                <option value="hybrid">Hybrid</option>
-                                <option value="luxury">Luxury</option>
-                                <option value="offroad">Off-road</option>
-                                <option value="van">Van</option>
                               </select>
                             </td>
                             <td className="px-4 py-2">
                               <select
                                 value={editDraft?.type ?? "buy"}
-                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), type: e.target.value }))}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), type: e.target.value as Car["type"] }))}
                                 className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
                               >
                                 <option value="buy">Buy</option>
@@ -657,6 +674,11 @@ export default function AdminDashboardPage() {
                             <td className="px-4 py-2">{c.year ?? "—"}</td>
                             <td className="px-4 py-2">
                               {c.currency} {c.price.toLocaleString()}
+                              {(c.type === "rent" || c.type === "both") && (
+                                <div className="text-xs text-white/70">
+                                  Rent: {c.currency} {(c.rentalPrice ?? Math.round(c.price * RENT_RATE)).toLocaleString()}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-2">{c.category}</td>
                             <td className="px-4 py-2">{c.type}</td>
@@ -705,7 +727,7 @@ export default function AdminDashboardPage() {
                     ))}
                     {!cars.length && (
                       <tr>
-                        <td className="px-4 py-3 text-center text-white/60" colSpan={7}>
+                        <td className="px-4 py-3 text-center text-white/60" colSpan={8}>
                           No cars posted yet
                         </td>
                       </tr>
@@ -925,4 +947,3 @@ function Badge({ children }: { children: string }) {
     </span>
   );
 }
-

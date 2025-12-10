@@ -8,6 +8,7 @@ type Car = {
   slug: string;
   model: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
   type: "buy" | "rent" | "both";
   inventory?: number;

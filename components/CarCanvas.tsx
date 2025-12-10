@@ -238,14 +238,14 @@ function CarRig({ follow }: { follow: boolean }) {
     const accel = controls.current.forward ? 16 : 0;
     const brakeForce = controls.current.brake ? 30 : 0;
     const reverse = controls.current.back ? 10 : 0;
-    const targetSteer = controls.current.left ? 0.7 : controls.current.right ? -0.7 : 0;
+    const targetSteer = controls.current.left ? 1.05 : controls.current.right ? -1.05 : 0;
 
     velocity.current += (accel - brakeForce - velocity.current * 2.2) * delta;
     velocity.current -= reverse * delta;
     velocity.current = MathUtils.clamp(velocity.current, -14, 26);
 
-    steering.current = MathUtils.lerp(steering.current, targetSteer, 0.18);
-    heading.current += steering.current * velocity.current * 0.12 * delta;
+    steering.current = MathUtils.lerp(steering.current, targetSteer, 0.24);
+    heading.current += steering.current * velocity.current * 0.16 * delta;
 
     const forward = new Vector3(0, 0, -1).applyAxisAngle(new Vector3(0, 1, 0), heading.current);
     position.current.addScaledVector(forward, velocity.current * delta);
@@ -338,9 +338,10 @@ export default function CarCanvas() {
           antialias: true,
           toneMapping: ACESFilmicToneMapping,
           outputColorSpace: SRGBColorSpace,
-          physicallyCorrectLights: true,
         }}
-        onCreated={({ scene }) => {
+        onCreated={({ scene, gl }) => {
+          // @ts-expect-error three types omit useLegacyLights
+          gl.useLegacyLights = false;
           scene.background = new Color("#f4ede3");
           scene.castShadow = true;
           scene.receiveShadow = true;

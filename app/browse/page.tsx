@@ -17,6 +17,7 @@ type Car = {
   slug: string;
   model: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
   type: "buy" | "rent" | "both";
   category?: string;
@@ -267,4 +268,3 @@ function Card({ car }: { car: Car }) {
     </Link>
   );
 }
-

@@ -158,16 +158,13 @@ export default function FilterSidebar({
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { label: "All", value: "all" },
-                  { label: "Sedan", value: "sedan" },
-                  { label: "SUV", value: "suv" },
-                  { label: "Coupe", value: "coupe" },
-                  { label: "Convertible", value: "convertible" },
-                  { label: "EV", value: "ev" },
-                  { label: "Hybrid", value: "hybrid" },
-                  { label: "Luxury", value: "luxury" },
-                  { label: "Off-road", value: "offroad" },
-                  { label: "Truck", value: "truck" },
-                  { label: "Van", value: "van" },
+                  { label: "Berlinetta (mid-engine)", value: "berlinetta" },
+                  { label: "Spider / Aperta", value: "spider" },
+                  { label: "GT / 2+2", value: "gt" },
+                  { label: "Track / Pista", value: "track" },
+                  { label: "Icona / Limited", value: "icona" },
+                  { label: "Special Series", value: "special" },
+                  { label: "Classic", value: "classic" },
                   { label: "General", value: "general" },
                 ].map((option) => (
                   <label
@@ -371,5 +368,4 @@ function badgeCount(filters: Filters) {
   if (filters.sort !== "recent") count += 1;
   return count;
 }
-
 

@@ -7,6 +7,7 @@ export type CarRecord = {
   model: string;
   slug: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
   type: "buy" | "rent" | "both";
   category: string; // sedan, suv, truck, coupe, convertible, ev, hybrid, luxury, offroad, van
@@ -44,6 +45,7 @@ export type CarQueryOptions = {
 };
 
 const DEFAULT_CATEGORY = "general";
+const RENTAL_RATE = 0.05;
 
 export async function listCars(options?: { status?: "active" | "inactive"; slug?: string }) {
   const { cars } = await queryCars({ ...options, includeTotal: false });
@@ -125,6 +127,7 @@ export async function getCarBySlug(slug: string) {
 export async function createCar(input: {
   model: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
   type: "buy" | "rent" | "both";
   category?: string;
@@ -146,6 +149,7 @@ export async function createCar(input: {
     model: input.model,
     slug,
     price: input.price,
+    rentalPrice: input.rentalPrice ?? Math.round(input.price * RENTAL_RATE),
     currency: input.currency,
     type: input.type,
     category: input.category ?? DEFAULT_CATEGORY,
@@ -190,4 +194,3 @@ export async function adjustInventory(id: string, delta: number) {
     .findOneAndUpdate({ _id: new ObjectId(id), inventory: { $gte: Math.max(0, -delta) } }, { $inc: { inventory: delta }, $set: { updatedAt: new Date() } }, { returnDocument: "after" });
   return res.value;
 }
-

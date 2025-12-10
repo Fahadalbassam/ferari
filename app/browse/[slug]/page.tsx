@@ -10,11 +10,14 @@ import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+const RENT_RATE = 0.05;
+
 type Car = {
   _id: string;
   slug: string;
   model: string;
   price: number;
+  rentalPrice?: number;
   currency: string;
   type: "buy" | "rent" | "both";
   category?: string;
@@ -174,13 +177,18 @@ export default function PostDetail() {
                   <div className="text-xs uppercase tracking-wide text-neutral-500">{car.type}</div>
                   <h1 className="text-2xl font-semibold">{car.model}</h1>
                 </div>
-                <div className="flex items-center gap-3 text-lg font-semibold">
+                <div className="flex flex-wrap items-center gap-3 text-lg font-semibold">
                   <span className="flex items-center gap-2">
                     {(car.currency || "").toUpperCase() === "SAR" && (
                       <Image src="/SAR.png" alt="SAR" width={18} height={12} className="h-4 w-auto" />
                     )}
                     {car.currency} {car.price.toLocaleString()}
                   </span>
+                  {(car.type === "rent" || car.type === "both") && (
+                    <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-800">
+                      Rent: {car.currency} {(car.rentalPrice ?? Math.round(car.price * RENT_RATE)).toLocaleString()}
+                    </span>
+                  )}
                   <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-800">
                     {hasInventory ? `In stock: ${car.inventory ?? 0}` : "Out of stock"}
                   </span>
@@ -286,4 +294,3 @@ export default function PostDetail() {
     </div>
   );
 }
-
