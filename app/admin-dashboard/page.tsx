@@ -17,7 +17,8 @@ type Order = {
   orderNumber: string;
   buyerEmail: string;
   buyerName: string;
-  total: number;
+  total?: number;
+  price?: number;
   status: OrderStatus;
   createdAt: string;
   currency: string;
@@ -759,11 +760,15 @@ export default function AdminDashboardPage() {
                       <tr key={o.id} className="border-t border-white/5">
                         <td className="px-4 py-2">{o.orderNumber}</td>
                         <td className="px-4 py-2 text-white/80">{o.buyerEmail}</td>
-                        <td className="px-4 py-2">${o.total.toLocaleString()}</td>
+                        <td className="px-4 py-2">
+                          ${Number(o.price ?? o.total ?? 0).toLocaleString()}
+                        </td>
                         <td className="px-4 py-2">
                           <Badge>{o.status}</Badge>
                         </td>
-                        <td className="px-4 py-2 text-white/60">{new Date(o.createdAt).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-white/60">
+                          {o.createdAt ? new Date(o.createdAt).toLocaleString() : ""}
+                        </td>
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-2">
                             <select
