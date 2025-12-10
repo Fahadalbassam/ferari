@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDb } from "@/lib/db";
+import { createCredentialsUser } from "@/lib/models/users";
 
 export const dynamic = "force-dynamic";
 
@@ -17,19 +18,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User already exists" }, { status: 409 });
     }
     const passwordHash = await bcrypt.hash(password, 10);
-    const now = new Date();
-    await db.collection("users").insertOne({
-      email: normalizedEmail,
-      passwordHash,
-      name: name || normalizedEmail,
-      role: "user",
-      createdAt: now,
-      updatedAt: now,
-    });
+    await createCredentialsUser({ email: normalizedEmail, passwordHash, name: name || normalizedEmail });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("register error", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
-

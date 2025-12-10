@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
     const order = await createOrder({
       carId: new ObjectId(carId),
       carModel: car.model,
+      carType: car.type,
+      carDescription: car.details,
+      carImages: car.images,
       price: car.price,
       currency: car.currency,
       buyerEmail,
@@ -39,6 +42,9 @@ export async function POST(req: NextRequest) {
       buyerName,
       orderNumber: order.orderNumber,
       carModel: car.model,
+      carType: car.type,
+      carDescription: car.details,
+      carImages: car.images,
       price: car.price,
       currency: car.currency,
       address,
@@ -55,6 +61,9 @@ async function maybeSendInvoiceEmail(opts: {
   buyerName: string;
   orderNumber: string;
   carModel: string;
+  carType?: string;
+  carDescription?: string;
+  carImages?: string[];
   price: number;
   currency: string;
   address?: string;
@@ -73,13 +82,17 @@ async function maybeSendInvoiceEmail(opts: {
     secure: false,
     auth: { user, pass },
   });
+  const imageLines = (opts.carImages || []).slice(0, 5).map((img, idx) => `Image ${idx + 1}: ${img}`);
   const body = [
     `Hi ${opts.buyerName || "there"},`,
     "",
     `Thanks for your purchase request. Order ${opts.orderNumber}`,
-    `Vehicle: ${opts.carModel}`,
+    `Vehicle: ${opts.carModel}${opts.carType ? ` (${opts.carType})` : ""}`,
     `Amount: ${opts.currency} ${opts.price.toLocaleString()}`,
+    opts.carDescription ? `Description: ${opts.carDescription}` : "",
     opts.address ? `Shipping/Billing: ${opts.address}` : "",
+    imageLines.length ? "Images:" : "",
+    ...imageLines,
     "",
     "Our team will follow up to complete your invoice and delivery steps.",
     "",

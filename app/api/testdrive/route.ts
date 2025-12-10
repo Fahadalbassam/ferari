@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       preferredDate,
       notes,
     });
-    return NextResponse.json({ request });
+    return NextResponse.json({ request: { ...request, id: request._id.toString() } });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -46,7 +46,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const requests = await listTestDrivesForEmail(email);
-  return NextResponse.json({ requests });
+  const normalized = requests.map((r) => ({ ...r, id: r._id.toString() }));
+  return NextResponse.json({ requests: normalized });
 }
 
 

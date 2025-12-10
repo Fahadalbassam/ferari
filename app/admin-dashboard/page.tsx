@@ -22,6 +22,9 @@ type Order = {
   createdAt: string;
   currency: string;
   tracking?: string;
+  carType?: string;
+  carDescription?: string;
+  carImages?: string[];
 };
 
 type TestDrive = {

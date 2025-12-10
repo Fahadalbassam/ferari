@@ -19,9 +19,13 @@ export async function GET(req: Request) {
   const limit = parseInt(searchParams.get("limit") ?? "10", 10);
 
   const { total, requests } = await listTestDrives({ status: statusParam ?? undefined, q, page, limit });
+  const normalized = requests.map((r) => ({
+    ...r,
+    id: r._id.toString(),
+  }));
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  return NextResponse.json({ total, page, limit, totalPages, requests });
+  return NextResponse.json({ total, page, limit, totalPages, requests: normalized });
 }
 
 export async function PATCH(req: Request) {
@@ -43,6 +47,13 @@ export async function PATCH(req: Request) {
     await updateTestDrive(id, { inventoryHoldReleased: true });
   }
 
-  return NextResponse.json({ request: updated });
+  return NextResponse.json({
+    request: updated
+      ? {
+          ...updated,
+          id: updated._id.toString(),
+        }
+      : null,
+  });
 }
 

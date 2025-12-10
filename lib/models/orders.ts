@@ -8,6 +8,9 @@ export type OrderRecord = {
   orderNumber: string;
   carId: ObjectId;
   carModel: string;
+  carType?: string;
+  carDescription?: string;
+  carImages?: string[];
   price: number;
   currency: string;
   buyerEmail: string;
@@ -23,6 +26,9 @@ export type OrderRecord = {
 export async function createOrder(input: {
   carId: ObjectId;
   carModel: string;
+  carType?: string;
+  carDescription?: string;
+  carImages?: string[];
   price: number;
   currency: string;
   buyerEmail: string;
@@ -37,6 +43,9 @@ export async function createOrder(input: {
     orderNumber,
     carId: input.carId,
     carModel: input.carModel,
+    carType: input.carType,
+    carDescription: input.carDescription,
+    carImages: input.carImages,
     price: input.price,
     currency: input.currency,
     buyerEmail: input.buyerEmail,

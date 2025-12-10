@@ -113,7 +113,7 @@ export default function Home() {
             aria-hidden
           >
             <Image
-              src="/ferariface.png"
+              src="/FERRARIFACE.png"
               alt="Ferrari face"
               width={1400}
               height={700}

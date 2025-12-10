@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -7,11 +7,11 @@ import { useEffect, useState } from "react";
 type Car = {
   _id: string;
   model: string;
-  slug: string;
 };
 
 type Booking = {
-  _id: string;
+  id?: string;
+  _id?: string;
   requestNumber: string;
   carModel: string;
   preferredDate: string;
@@ -28,6 +28,8 @@ export default function TestDrivePage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadCars = async () => {
@@ -38,7 +40,7 @@ export default function TestDrivePage() {
         const list = (data.cars || []) as Car[];
         setCars(list);
         if (list.length && !selectedCar) {
-          setSelectedCar(list[0].slug);
+          setSelectedCar(list[0]._id);
         }
       } catch {
         // ignore load errors silently for picker
@@ -46,7 +48,7 @@ export default function TestDrivePage() {
     };
     loadCars();
 
-    const load = async () => {
+    const loadBookings = async () => {
       if (!session?.user?.email) return;
       setLoading(true);
       setError(null);
@@ -57,14 +59,15 @@ export default function TestDrivePage() {
           throw new Error(data.error || "Failed to load bookings");
         }
         const data = await res.json();
-        setBookings(data.requests || []);
+        const mapped = (data.requests || []).map((r: Booking) => ({ ...r, id: r.id || r._id }));
+        setBookings(mapped);
       } catch (err) {
         setError((err as Error).message);
       } finally {
         setLoading(false);
       }
     };
-    load();
+    loadBookings();
   }, [session?.user?.email, selectedCar]);
 
   if (!session?.user) {
@@ -113,7 +116,7 @@ export default function TestDrivePage() {
               >
                 {cars.length === 0 && <option value="">Loading cars…</option>}
                 {cars.map((car) => (
-                  <option key={car._id} value={car.slug}>
+                  <option key={car._id} value={car._id}>
                     {car.model}
                   </option>
                 ))}
@@ -137,9 +140,53 @@ export default function TestDrivePage() {
                 rows={3}
               />
             </div>
-            <button className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800">
-              Submit request
+            <button
+              onClick={async () => {
+                setError(null);
+                setSubmitMessage(null);
+                if (!session?.user?.email || !session.user.name) {
+                  setError("Please sign in to request a test drive.");
+                  return;
+                }
+                if (!selectedCar || !date) {
+                  setError("Select a car and preferred date.");
+                  return;
+                }
+                setSubmitting(true);
+                try {
+                  const res = await fetch("/api/testdrive", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      carId: selectedCar,
+                      customerEmail: session.user.email,
+                      customerName: session.user.name || "Ferrari client",
+                      preferredDate: date,
+                      notes: notes || undefined,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Failed to submit request");
+                  }
+                  const data = await res.json();
+                  const request = data.request as Booking;
+                  setBookings((prev) => [{ ...request, id: request.id || request._id }, ...prev]);
+                  setSubmitMessage("Request submitted. We will confirm shortly.");
+                  setDate("");
+                  setNotes("");
+                } catch (err) {
+                  setError((err as Error).message);
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              disabled={submitting}
+              className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            >
+              {submitting ? "Submitting…" : "Submit request"}
             </button>
+            {submitMessage && <div className="text-xs font-semibold text-neutral-700">{submitMessage}</div>}
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -172,7 +219,7 @@ export default function TestDrivePage() {
                   </thead>
                   <tbody>
                     {bookings.map((b) => (
-                      <tr key={b._id} className="border-t border-neutral-200">
+                      <tr key={b.id || b._id || b.requestNumber} className="border-t border-neutral-200">
                         <td className="px-3 py-2">{b.requestNumber}</td>
                         <td className="px-3 py-2">{b.carModel}</td>
                         <td className="px-3 py-2">{b.preferredDate}</td>
@@ -189,8 +236,3 @@ export default function TestDrivePage() {
     </main>
   );
 }
-
-
-
-
-
