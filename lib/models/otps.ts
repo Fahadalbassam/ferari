@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { hash, compare } from "bcryptjs";
 import { getDb } from "../db";
 
-export type OtpPurpose = "password_reset";
+export type OtpPurpose = "password_reset" | "register";
 
 export type OtpRecord = {
   _id: ObjectId;

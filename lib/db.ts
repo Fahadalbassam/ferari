@@ -1,6 +1,7 @@
 import { MongoClient, Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "";
+// Prefer MONGODB_URI; fallback to Vercel-provided MONGODB_URL_MONGODB_URI.
+const uri = process.env.MONGODB_URI || process.env.MONGODB_URL_MONGODB_URI || "";
 const dbName = process.env.MONGODB_DB || "app";
 
 if (!uri) {
@@ -21,5 +22,8 @@ export async function getDb(): Promise<Db> {
   const client = await getMongoClient();
   return client.db(dbName);
 }
+
+
+
 
 

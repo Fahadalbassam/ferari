@@ -15,7 +15,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "reset">("signin");
+  const [mode, setMode] = useState<"signin" | "reset" | "register">("signin");
   const [resetStage, setResetStage] = useState<"request" | "verify">("request");
   const [resetEmail, setResetEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -24,6 +24,16 @@ export default function SignInPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  // Registration flow
+  const [registerStage, setRegisterStage] = useState<"request" | "verify">("request");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerOtp, setRegisterOtp] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirm, setRegisterConfirm] = useState("");
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerMessage, setRegisterMessage] = useState<string | null>(null);
+  const [registerError, setRegisterError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,6 +48,72 @@ export default function SignInPage() {
     if (res?.error) {
       setError("Invalid credentials. Please try again.");
       setIsSubmitting(false);
+      return;
+    }
+    window.location.href = "/";
+  };
+
+  const handleSendRegisterOtp = async () => {
+    setRegisterError(null);
+    setRegisterMessage(null);
+    if (!registerEmail) {
+      setRegisterError("Enter your email to receive an OTP.");
+      return;
+    }
+    setRegisterLoading(true);
+    const res = await fetch("/api/auth/register/request-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: registerEmail }),
+    });
+    setRegisterLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setRegisterError(data.error || "Failed to send OTP.");
+      return;
+    }
+    setRegisterStage("verify");
+    setRegisterMessage("OTP sent. Check your email (or server logs in dev).");
+  };
+
+  const handleConfirmRegister = async () => {
+    setRegisterError(null);
+    setRegisterMessage(null);
+    if (!registerEmail || !registerOtp || !registerPassword || !registerConfirm) {
+      setRegisterError("Fill all fields.");
+      return;
+    }
+    if (registerPassword !== registerConfirm) {
+      setRegisterError("Passwords do not match.");
+      return;
+    }
+    setRegisterLoading(true);
+    const res = await fetch("/api/auth/register/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: registerEmail,
+        otp: registerOtp,
+        password: registerPassword,
+        name: registerEmail,
+      }),
+    });
+    setRegisterLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setRegisterError(data.error || "Failed to create account.");
+      return;
+    }
+    setRegisterMessage("Account created. Logging you in...");
+    const loginRes = await signIn("credentials", {
+      redirect: false,
+      identifier: registerEmail,
+      password: registerPassword,
+      callbackUrl: "/",
+    });
+    if (loginRes?.error) {
+      setRegisterError("Account created, but login failed. Please sign in.");
+      setMode("signin");
       return;
     }
     window.location.href = "/";
@@ -125,10 +201,18 @@ export default function SignInPage() {
           />
           <div>
             <h1 className="text-xl font-semibold text-neutral-900">
-              {mode === "signin" ? "Sign in" : "Password reset"}
+              {mode === "signin"
+                ? "Sign in"
+                : mode === "reset"
+                  ? "Password reset"
+                  : "Create account"}
             </h1>
             <p className="text-sm text-neutral-600">
-              {mode === "signin" ? "Welcome back" : "Reset your password with OTP"}
+              {mode === "signin"
+                ? "Welcome back"
+                : mode === "reset"
+                  ? "Reset your password with OTP"
+                  : "Create your account with email + OTP"}
             </p>
           </div>
         </div>
@@ -166,7 +250,7 @@ export default function SignInPage() {
               </button>
             </form>
 
-            <div className="mt-3 text-right">
+            <div className="mt-3 flex items-center justify-between text-sm">
               <button
                 type="button"
                 onClick={() => {
@@ -181,6 +265,21 @@ export default function SignInPage() {
                 className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
               >
                 Forgot password?
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("register");
+                  setRegisterStage("request");
+                  setRegisterError(null);
+                  setRegisterMessage(null);
+                  setRegisterOtp("");
+                  setRegisterPassword("");
+                  setRegisterConfirm("");
+                }}
+                className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
+              >
+                New user? Create account
               </button>
             </div>
           </>
@@ -287,6 +386,111 @@ export default function SignInPage() {
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {mode === "register" && (
+          <div className="space-y-4">
+            {registerStage === "request" && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-neutral-800">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
+                {registerError && <div className="text-sm text-red-600">{registerError}</div>}
+                {registerMessage && <div className="text-sm text-green-600">{registerMessage}</div>}
+                <button
+                  type="button"
+                  onClick={handleSendRegisterOtp}
+                  disabled={registerLoading}
+                  className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  {registerLoading ? "Sending..." : "Send OTP"}
+                </button>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signin");
+                      setRegisterStage("request");
+                      setRegisterError(null);
+                      setRegisterMessage(null);
+                      setRegisterOtp("");
+                      setRegisterPassword("");
+                      setRegisterConfirm("");
+                    }}
+                    className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              </>
+            )}
+
+            {registerStage === "verify" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-neutral-800">OTP</label>
+                  <input
+                    type="text"
+                    value={registerOtp}
+                    onChange={(e) => setRegisterOtp(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                    placeholder="6-digit code"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-neutral-800">Password</label>
+                  <input
+                    type="password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-neutral-800">Confirm password</label>
+                  <input
+                    type="password"
+                    value={registerConfirm}
+                    onChange={(e) => setRegisterConfirm(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
+                {registerError && <div className="text-sm text-red-600">{registerError}</div>}
+                {registerMessage && <div className="text-sm text-green-600">{registerMessage}</div>}
+                <button
+                  type="button"
+                  onClick={handleConfirmRegister}
+                  disabled={registerLoading}
+                  className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  {registerLoading ? "Creating account..." : "Create account"}
+                </button>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisterStage("request");
+                      setRegisterError(null);
+                      setRegisterMessage(null);
+                      setRegisterOtp("");
+                      setRegisterPassword("");
+                      setRegisterConfirm("");
+                    }}
+                    className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

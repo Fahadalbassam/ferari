@@ -31,13 +31,16 @@ function BrowsePageContent() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/cars", { next: { revalidate: 0 } });
-        if (!res.ok) throw new Error(await res.text());
+        const res = await fetch("/api/cars", { cache: "no-store" });
+        if (!res.ok) {
+          const msg = await res.text().catch(() => "");
+          throw new Error(msg || `Request failed (${res.status})`);
+        }
         const data = await res.json();
         setCars(data.cars || []);
       } catch (err) {
         setError("Failed to load cars. Please try again.");
-        console.error(err);
+        console.error("Failed to load cars", err);
       } finally {
         setLoading(false);
       }
