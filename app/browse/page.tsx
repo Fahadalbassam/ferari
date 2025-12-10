@@ -2,9 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import FilterSidebar from "@/components/filter-sidebar";
 import { useFilters } from "@/hooks/use-filters";
+
+const StaticCar = dynamic(() => import("@/components/StaticCar"), {
+  ssr: false,
+  loading: () => <div className="h-[32vh] w-full bg-[#f4ede3]" />,
+});
 
 type Car = {
   _id: string;
@@ -100,6 +106,10 @@ function BrowsePageContent() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-neutral-900">
+      <div className="w-full bg-[#f4ede3]">
+        <StaticCar />
+      </div>
+
       <div className="border-b border-neutral-200 px-6 py-6 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

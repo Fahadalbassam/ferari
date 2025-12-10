@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCarById, adjustInventory } from "@/lib/models/cars";
-import { createTestDrive } from "@/lib/models/testdrives";
+import { createTestDrive, listTestDrivesForEmail } from "@/lib/models/testdrives";
+import { getServerAuthSession } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,16 @@ export async function POST(req: NextRequest) {
     console.error(err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+}
+
+export async function GET() {
+  const session = await getServerAuthSession();
+  const email = (session as { user?: { email?: string } } | null)?.user?.email;
+  if (!email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const requests = await listTestDrivesForEmail(email);
+  return NextResponse.json({ requests });
 }
 
 

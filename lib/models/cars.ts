@@ -177,6 +177,12 @@ export async function updateCar(id: string, updates: Partial<Omit<CarRecord, "_i
   return getCarById(id);
 }
 
+export async function deleteCar(id: string) {
+  const db = await getDb();
+  await db.collection<CarRecord>("cars").deleteOne({ _id: new ObjectId(id) });
+  return true;
+}
+
 export async function adjustInventory(id: string, delta: number) {
   const db = await getDb();
   const res = await db

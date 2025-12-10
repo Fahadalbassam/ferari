@@ -70,6 +70,17 @@ export async function listTestDrives(options: { status?: TestDriveStatus; q?: st
   return { total, page, limit, requests };
 }
 
+export async function listTestDrivesForEmail(email: string) {
+  const db = await getDb();
+  const requests = await db
+    .collection<TestDriveRecord>("test_drive_requests")
+    .find({ customerEmail: email })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .toArray();
+  return requests;
+}
+
 export async function getTestDriveById(id: string) {
   const db = await getDb();
   return db.collection<TestDriveRecord>("test_drive_requests").findOne({ _id: new ObjectId(id) });

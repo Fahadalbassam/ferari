@@ -17,7 +17,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const DEFAULT_FILTERS: Filters = {
   search: "",
   type: "all",
-  priceRange: [0, 1_500_000],
+  priceRange: [0, 10_000_000],
   availability: "all",
   carType: "all",
   yearRange: [1990, CURRENT_YEAR + 1],
@@ -25,7 +25,7 @@ const DEFAULT_FILTERS: Filters = {
 };
 
 const clampPrice = (value: number) =>
-  Math.min(Math.max(Number.isFinite(value) ? value : 0, 0), 1_500_000);
+  Math.min(Math.max(Number.isFinite(value) ? value : 0, 0), 10_000_000);
 const clampYear = (value: number) =>
   Math.min(Math.max(Number.isFinite(value) ? value : DEFAULT_FILTERS.yearRange[0], 1980), CURRENT_YEAR + 1);
 

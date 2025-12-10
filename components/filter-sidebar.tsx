@@ -220,7 +220,7 @@ export default function FilterSidebar({
                         })
                       }
                       min={0}
-                      max={filters.priceRange[1]}
+                    max={filters.priceRange[1]}
                       className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200"
                     />
                   </div>
@@ -235,7 +235,7 @@ export default function FilterSidebar({
                         })
                       }
                       min={filters.priceRange[0]}
-                      max={1_500_000}
+                    max={10_000_000}
                       className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200"
                     />
                   </div>
@@ -244,7 +244,7 @@ export default function FilterSidebar({
                   <input
                     type="range"
                     min={0}
-                    max={1_500_000}
+                  max={10_000_000}
                     step={10_000}
                     value={filters.priceRange[0]}
                     onChange={(e) =>
@@ -257,7 +257,7 @@ export default function FilterSidebar({
                   <input
                     type="range"
                     min={0}
-                    max={1_500_000}
+                  max={10_000_000}
                     step={10_000}
                     value={filters.priceRange[1]}
                     onChange={(e) =>
@@ -366,7 +366,7 @@ function badgeCount(filters: Filters) {
   if (filters.type !== "all") count += 1;
   if (filters.availability !== "all") count += 1;
   if (filters.carType !== "all") count += 1;
-  if (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 1_500_000) count += 1;
+  if (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10_000_000) count += 1;
   if (filters.yearRange[0] !== 1990 || filters.yearRange[1] !== new Date().getFullYear() + 1) count += 1;
   if (filters.sort !== "recent") count += 1;
   return count;

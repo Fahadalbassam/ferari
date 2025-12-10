@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Car = {
   _id: string;
@@ -17,6 +17,10 @@ function CheckoutInner() {
   const params = useSearchParams();
   const slug = params.get("slug");
   const mode = params.get("mode") === "rent" ? "rent" : "buy";
+  const prefillEmail = params.get("prefillEmail") || "";
+  const prefillName = params.get("prefillName") || "";
+  const prefillAddress = params.get("prefillAddress") || "";
+  const router = useRouter();
 
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,12 @@ function CheckoutInner() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (prefillEmail) setEmail(prefillEmail);
+    if (prefillName) setName(prefillName);
+    if (prefillAddress) setAddress(prefillAddress);
+  }, [prefillAddress, prefillEmail, prefillName]);
 
   useEffect(() => {
     const load = async () => {
@@ -58,8 +68,8 @@ function CheckoutInner() {
 
   const handleSubmit = async () => {
     if (!car) return;
-    if (!name || !email) {
-      setError("Name and email are required.");
+    if (!name || !email || !address) {
+      setError("Name, email, and address are required.");
       return;
     }
     setSubmitting(true);
@@ -73,13 +83,15 @@ function CheckoutInner() {
           buyerEmail: email,
           buyerName: name,
           address,
+          notes,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Order failed");
       }
-      alert("Order placed successfully.");
+      const data = await res.json();
+      router.push(`/thank-you?order=${encodeURIComponent(data.order?.orderNumber || "")}`);
     } catch (err) {
       setError((err as Error).message);
     } finally {

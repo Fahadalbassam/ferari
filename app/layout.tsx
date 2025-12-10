@@ -26,6 +26,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preload" as="fetch" href="/models/ferrari.glb" crossOrigin="anonymous" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/px.jpg" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/nx.jpg" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/py.jpg" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/ny.jpg" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/pz.jpg" />
+        <link rel="preload" as="image" href="/textures/cube/skyboxsun25deg/nz.jpg" />
+        <link rel="preload" as="image" href="/models/ferrari_ao.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}
       >

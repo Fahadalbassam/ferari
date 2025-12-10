@@ -110,7 +110,7 @@ export default function Home() {
               height={600}
               className="pointer-events-none select-none object-contain"
               style={{
-                transform: `translateY(${(120 - faceProgress * 70) - 50}px) scale(${0.3 + faceProgress * 0.4})`,
+                transform: `translate(-10px, ${70 - faceProgress * 140}px) rotateX(-22deg) rotateZ(-3deg) scale(${0.6 + faceProgress * 0.45})`,
                 transition: "transform 0.16s ease-out",
               }}
               priority

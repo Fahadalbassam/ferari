@@ -28,6 +28,7 @@ export async function createOrder(input: {
   buyerEmail: string;
   buyerName: string;
   address?: string;
+  notes?: string;
 }) {
   const db = await getDb();
   const count = await db.collection<OrderRecord>("orders").countDocuments();
@@ -41,6 +42,7 @@ export async function createOrder(input: {
     buyerEmail: input.buyerEmail,
     buyerName: input.buyerName,
     address: input.address,
+    notes: input.notes,
     status: "pending",
     createdAt: new Date(),
     updatedAt: new Date(),

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
-import { listCars, createCar, updateCar } from "@/lib/models/cars";
+import { listCars, createCar, updateCar, deleteCar } from "@/lib/models/cars";
 import { validateAdminSession } from "@/lib/models/admin-sessions";
 
 export const dynamic = "force-dynamic";
@@ -67,5 +67,17 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   const car = await updateCar(id, rest);
   return NextResponse.json({ car });
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerAuthSession();
+  if (!(await validateAdminSession(session as { user?: { id?: string; accountType?: string } } | null))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const body = await req.json().catch(() => ({}));
+  const { id } = body || {};
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  await deleteCar(id);
+  return NextResponse.json({ ok: true });
 }
 

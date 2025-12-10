@@ -7,8 +7,8 @@
 "use client";
 
 import Image from "next/image";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 type Car = {
   _id: string;
@@ -27,6 +27,7 @@ type Car = {
 export default function PostDetail() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
+  const router = useRouter();
 
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,24 +40,27 @@ export default function PostDetail() {
   const [tdEmail, setTdEmail] = useState("");
   const [tdDate, setTdDate] = useState("");
   const [tdNotes, setTdNotes] = useState("");
+  const [buyError, setBuyError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<"order" | "testdrive" | null>(null);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       if (!slug) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/cars/${slug}`, { next: { revalidate: 0 } });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        setCar(data.car || null);
-      } catch (err) {
-        setError("Failed to load car.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/cars/${slug}`, { next: { revalidate: 0 } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setCar(data.car || null);
+      setActiveImage(data.car?.images?.[0] ?? null);
+    } catch (err) {
+      setError("Failed to load car.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
     };
     load();
   }, [slug]);
@@ -65,34 +69,26 @@ export default function PostDetail() {
   const showTestDrive = !!car;
   const hasInventory = (car?.inventory ?? 0) > 0;
 
-  const handleOrder = async () => {
-    if (!car || !orderName || !orderEmail) {
-      setError("Name and email are required to place an order.");
+  const handleOrder = () => {
+    if (!car || !orderName || !orderEmail || !orderAddress) {
+      setBuyError("Please fill name, email, and address to continue.");
       return;
     }
-    setSubmitting("order");
-    setError(null);
-    try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          carId: car._id,
-          buyerEmail: orderEmail,
-          buyerName: orderName,
-          address: orderAddress,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Order failed");
-      }
-      alert("Order placed successfully.");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSubmitting(null);
+    if (!hasInventory) {
+      setBuyError("Out of stock.");
+      return;
     }
+    setBuyError(null);
+    setError(null);
+    setSubmitting("order");
+    const qs = new URLSearchParams({
+      slug: car.slug,
+      mode: "buy",
+      prefillName: orderName,
+      prefillEmail: orderEmail,
+      prefillAddress: orderAddress,
+    }).toString();
+    router.push(`/checkout?${qs}`);
   };
 
   const handleTestDrive = async () => {
@@ -118,13 +114,18 @@ export default function PostDetail() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Request failed");
       }
-      alert("Test drive requested. We will confirm soon.");
+      router.push("/test-drive");
+      setTimeout(() => {
+        alert("Test drive requested. We will confirm soon.");
+      }, 50);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(null);
     }
   };
+
+  const images = useMemo(() => car?.images ?? [], [car]);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
@@ -138,18 +139,34 @@ export default function PostDetail() {
         ) : (
           <>
             <div className="grid gap-8 lg:grid-cols-2">
-              <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
-                {car.images?.[0] ? (
-                  <Image
-                    src={car.images[0]}
-                    alt={car.model}
-                    fill
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover"
-                    priority
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
+              <div className="space-y-3">
+                <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100" style={{ aspectRatio: "16 / 9" }}>
+                  {activeImage ? (
+                    <Image
+                      src={activeImage}
+                      alt={car.model}
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-cover"
+                      priority
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-neutral-500">No image</div>
+                  )}
+                </div>
+                {images.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {images.map((img) => (
+                      <button
+                        key={img}
+                        type="button"
+                        onClick={() => setActiveImage(img)}
+                        className={`relative h-16 w-24 overflow-hidden rounded-md border ${activeImage === img ? "border-neutral-900" : "border-neutral-200"} bg-neutral-100`}
+                      >
+                        <Image src={img} alt={`${car.model} thumb`} fill className="object-cover" sizes="96px" />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="space-y-4">
@@ -219,6 +236,7 @@ export default function PostDetail() {
                       className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
                       rows={3}
                     />
+                    {buyError ? <div className="text-xs text-red-600">{buyError}</div> : null}
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-semibold text-neutral-900">Test-drive details</div>

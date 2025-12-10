@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Status = "idle" | "checking" | "prompt" | "ready" | "error";
@@ -43,6 +44,7 @@ type Car = {
   year?: number;
   inventory: number;
   status: string;
+  slug?: string;
 };
 
 export default function AdminDashboardPage() {
@@ -70,6 +72,11 @@ export default function AdminDashboardPage() {
   const [newCarDetails, setNewCarDetails] = useState("");
   const [creatingCar, setCreatingCar] = useState(false);
   const [createMessage, setCreateMessage] = useState<string | null>(null);
+  const [editingCarId, setEditingCarId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<Car> | null>(null);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+  const [savingCarId, setSavingCarId] = useState<string | null>(null);
+  const [deletingCarId, setDeletingCarId] = useState<string | null>(null);
 
   const fetchVerify = async () => {
     setError(null);
@@ -225,6 +232,81 @@ export default function AdminDashboardPage() {
       setCreateMessage(message);
     } finally {
       setCreatingCar(false);
+    }
+  };
+
+  const startEdit = (car: Car) => {
+    setEditingCarId(car._id);
+    setEditDraft({
+      ...car,
+      price: car.price,
+      inventory: car.inventory,
+    });
+    setEditMessage(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingCarId(null);
+    setEditDraft(null);
+    setEditMessage(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editingCarId || !editDraft) return;
+    setSavingCarId(editingCarId);
+    setEditMessage(null);
+    try {
+      const res = await fetch("/api/admin/cars", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCarId,
+          model: editDraft.model,
+          price: editDraft.price,
+          currency: editDraft.currency,
+          type: editDraft.type,
+          category: editDraft.category,
+          year: editDraft.year,
+          inventory: editDraft.inventory,
+          status: editDraft.status,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update car");
+      }
+      const data = await res.json();
+      setCars((prev) => prev.map((c) => (c._id === editingCarId ? { ...c, ...data.car } : c)));
+      setEditMessage("Updated successfully.");
+      setEditingCarId(null);
+      setEditDraft(null);
+    } catch (err) {
+      setEditMessage((err as Error).message);
+    } finally {
+      setSavingCarId(null);
+    }
+  };
+
+  const handleDelete = async (carId: string) => {
+    if (!confirm("Delete this car? This cannot be undone.")) return;
+    setDeletingCarId(carId);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/cars", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: carId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete car");
+      }
+      setCars((prev) => prev.filter((c) => c._id !== carId));
+      if (editingCarId === carId) cancelEdit();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeletingCarId(null);
     }
   };
 
@@ -465,22 +547,160 @@ export default function AdminDashboardPage() {
                       <th className="px-4 py-2 text-left">Listing</th>
                       <th className="px-4 py-2 text-left">Inventory</th>
                       <th className="px-4 py-2 text-left">Status</th>
+                      <th className="px-4 py-2 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cars.map((c) => (
                       <tr key={c._id} className="border-t border-white/5">
-                        <td className="px-4 py-2">{c.model}</td>
-                        <td className="px-4 py-2">{c.year ?? "—"}</td>
-                        <td className="px-4 py-2">
-                          {c.currency} {c.price.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2">{c.category}</td>
-                        <td className="px-4 py-2">{c.type}</td>
-                        <td className="px-4 py-2">{c.inventory}</td>
-                        <td className="px-4 py-2">
-                          <Badge>{c.status}</Badge>
-                        </td>
+                        {editingCarId === c._id ? (
+                          <>
+                            <td className="px-4 py-2">
+                              <input
+                                value={editDraft?.model ?? ""}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), model: e.target.value }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                value={editDraft?.year ?? ""}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), year: Number(e.target.value) }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex gap-2">
+                                <input
+                                  value={editDraft?.price ?? ""}
+                                  onChange={(e) => setEditDraft((p) => ({ ...(p || {}), price: Number(e.target.value) }))}
+                                  className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                                />
+                                <input
+                                  value={editDraft?.currency ?? ""}
+                                  onChange={(e) => setEditDraft((p) => ({ ...(p || {}), currency: e.target.value }))}
+                                  className="w-20 rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                                />
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={editDraft?.category ?? "general"}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), category: e.target.value }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              >
+                                <option value="general">General</option>
+                                <option value="sedan">Sedan</option>
+                                <option value="suv">SUV</option>
+                                <option value="truck">Truck</option>
+                                <option value="coupe">Coupe</option>
+                                <option value="convertible">Convertible</option>
+                                <option value="ev">EV</option>
+                                <option value="hybrid">Hybrid</option>
+                                <option value="luxury">Luxury</option>
+                                <option value="offroad">Off-road</option>
+                                <option value="van">Van</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={editDraft?.type ?? "buy"}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), type: e.target.value }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              >
+                                <option value="buy">Buy</option>
+                                <option value="rent">Rent</option>
+                                <option value="both">Both</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                value={editDraft?.inventory ?? ""}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), inventory: Number(e.target.value) }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={editDraft?.status ?? "active"}
+                                onChange={(e) => setEditDraft((p) => ({ ...(p || {}), status: e.target.value }))}
+                                className="w-full rounded-md border border-white/20 bg-neutral-900 px-2 py-1 text-sm text-white"
+                              >
+                                <option value="active">active</option>
+                                <option value="inactive">inactive</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={saveEdit}
+                                  disabled={savingCarId === c._id}
+                                  className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-black hover:bg-white/80 disabled:opacity-60"
+                                >
+                                  {savingCarId === c._id ? "Saving…" : "Save"}
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="rounded-md border border-white/30 px-2 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              {editMessage && <div className="mt-1 text-xs text-white/70">{editMessage}</div>}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-2">{c.model}</td>
+                            <td className="px-4 py-2">{c.year ?? "—"}</td>
+                            <td className="px-4 py-2">
+                              {c.currency} {c.price.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2">{c.category}</td>
+                            <td className="px-4 py-2">{c.type}</td>
+                            <td className="px-4 py-2">{c.inventory}</td>
+                            <td className="px-4 py-2">
+                              <Badge>{c.status}</Badge>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => startEdit(c)}
+                                  className="rounded-md border border-white/30 px-2 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(c._id)}
+                                  disabled={deletingCarId === c._id}
+                                  className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold text-red-100 hover:bg-red-600/20 disabled:opacity-60"
+                                >
+                                  {deletingCarId === c._id ? "Deleting…" : "Delete"}
+                                </button>
+                                {c.slug ? (
+                                  <>
+                                    <Link
+                                      href={`/browse/${c.slug}`}
+                                      className="rounded-md border border-white/30 px-2 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                    >
+                                      Buy now
+                                    </Link>
+                                    <Link
+                                      href={`/browse/${c.slug}`}
+                                      className="rounded-md border border-white/30 px-2 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                    >
+                                      Book test drive
+                                    </Link>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-white/60">No slug</span>
+                                )}
+                              </div>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                     {!cars.length && (
@@ -682,7 +902,7 @@ function StatCard({
 }) {
   return (
     <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-      <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent}`} />
+      <div className={`pointer-events-none absolute inset-0 bg-linear-to-br ${accent}`} />
       <div className="relative space-y-2">
         <div className="text-sm text-white/70">{title}</div>
         <div className="text-2xl font-semibold">{value}</div>
