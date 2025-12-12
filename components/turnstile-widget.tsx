@@ -32,6 +32,17 @@ type Props = {
 export default function TurnstileWidget({ siteKey, onVerify, onError, theme = "light" }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const verifyCbRef = useRef(onVerify);
+  const errorCbRef = useRef(onError);
+
+  // Keep latest callbacks without retriggering the render effect.
+  useEffect(() => {
+    verifyCbRef.current = onVerify;
+  }, [onVerify]);
+
+  useEffect(() => {
+    errorCbRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,17 +73,17 @@ export default function TurnstileWidget({ siteKey, onVerify, onError, theme = "l
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           theme,
-          callback: (token: string) => onVerify(token),
+          callback: (token: string) => verifyCbRef.current?.(token),
           "error-callback": () => {
-            onVerify("");
-            onError?.("Verification failed, please retry.");
+            verifyCbRef.current?.("");
+            errorCbRef.current?.("Verification failed, please retry.");
           },
-          "expired-callback": () => onVerify(""),
+          "expired-callback": () => verifyCbRef.current?.(""),
         });
       })
       .catch((err) => {
         console.error(err);
-        onError?.("Could not load Turnstile. Please refresh and try again.");
+        errorCbRef.current?.("Could not load Turnstile. Please refresh and try again.");
       });
 
     return () => {
@@ -81,9 +92,10 @@ export default function TurnstileWidget({ siteKey, onVerify, onError, theme = "l
         window.turnstile.remove(widgetIdRef.current);
       }
     };
-  }, [siteKey, onError, onVerify, theme]);
+  }, [siteKey, theme]);
 
   return <div ref={containerRef} className="mt-2" />;
 }
+
 
 
