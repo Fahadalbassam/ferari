@@ -121,7 +121,6 @@ export default function StaticCar() {
           antialias: true,
           toneMapping: ACESFilmicToneMapping,
           outputColorSpace: SRGBColorSpace,
-          physicallyCorrectLights: true,
         }}
         onCreated={({ scene }) => {
           scene.background = new Color("#000000");
