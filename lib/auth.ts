@@ -10,6 +10,7 @@ import EmailProvider from "next-auth/providers/email";
 import clientPromise from "./mongodb-adapter-client";
 import { getDb } from "./db";
 import { ObjectId } from "mongodb";
+import { verifyTurnstileToken } from "./turnstile";
 
 type AppUser = {
   id: string;
@@ -28,6 +29,13 @@ const providers: any[] = [
     },
     async authorize(credentials) {
       if (!credentials?.identifier || !credentials?.password) return null;
+
+      const turnstileCheck = await verifyTurnstileToken(
+        (credentials as typeof credentials & { turnstileToken?: string }).turnstileToken,
+      );
+      if (!turnstileCheck.success) {
+        throw new Error("Turnstile verification failed. Please retry.");
+      }
 
       const { getDb } = await import("./db");
       const db = await getDb();

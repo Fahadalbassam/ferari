@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import TurnstileWidget from "@/components/turnstile-widget";
 
 const oauthButtons = [
   { provider: "google", label: "Sign in with Google" },
@@ -15,6 +16,9 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
+  const [turnstileRefresh, setTurnstileRefresh] = useState(0);
   const [mode, setMode] = useState<"signin" | "reset" | "register">("signin");
   const [resetStage, setResetStage] = useState<"request" | "verify">("request");
   const [resetEmail, setResetEmail] = useState("");
@@ -35,18 +39,31 @@ export default function SignInPage() {
   const [registerMessage, setRegisterMessage] = useState<string | null>(null);
   const [registerError, setRegisterError] = useState<string | null>(null);
 
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setTurnstileError(null);
+
+    if (turnstileSiteKey && !turnstileToken) {
+      setError("Please complete the verification.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const res = await signIn("credentials", {
       redirect: false,
       identifier,
       password,
+      turnstileToken,
       callbackUrl: "/",
     });
     if (res?.error) {
-      setError("Invalid credentials. Please try again.");
+      setError(res.error === "CredentialsSignin" ? "Invalid credentials. Please try again." : res.error);
+      setTurnstileToken("");
+      setTurnstileRefresh((n) => n + 1); // re-render widget on failure
       setIsSubmitting(false);
       return;
     }
@@ -239,6 +256,24 @@ export default function SignInPage() {
                   className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
                 />
               </div>
+              {turnstileSiteKey ? (
+                <div>
+                  <TurnstileWidget
+                    key={`signin-${turnstileRefresh}`}
+                    siteKey={turnstileSiteKey}
+                    onVerify={(token) => {
+                      setTurnstileToken(token);
+                      if (token) setTurnstileError(null);
+                    }}
+                    onError={(msg) => setTurnstileError(msg)}
+                  />
+                  {turnstileError && <div className="text-sm text-red-600">{turnstileError}</div>}
+                </div>
+              ) : (
+                <div className="text-xs text-amber-700">
+                  Turnstile not configured. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY (or TURNSTILE_SITE_KEY at build time) to enable.
+                </div>
+              )}
               {error && <div className="text-sm text-red-600">{error}</div>}
               <button
                 type="submit"
@@ -260,6 +295,9 @@ export default function SignInPage() {
                   setOtp("");
                   setNewPassword("");
                   setConfirmPassword("");
+                  setTurnstileToken("");
+                  setTurnstileError(null);
+                  setTurnstileRefresh((n) => n + 1);
                 }}
                 className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
               >
@@ -275,6 +313,9 @@ export default function SignInPage() {
                   setRegisterOtp("");
                   setRegisterPassword("");
                   setRegisterConfirm("");
+                  setTurnstileToken("");
+                  setTurnstileError(null);
+                  setTurnstileRefresh((n) => n + 1);
                 }}
                 className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
               >
@@ -297,6 +338,9 @@ export default function SignInPage() {
                   setOtp("");
                   setNewPassword("");
                   setConfirmPassword("");
+                  setTurnstileToken("");
+                  setTurnstileError(null);
+                  setTurnstileRefresh((n) => n + 1);
                 }}
                 className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
               >
@@ -423,6 +467,9 @@ export default function SignInPage() {
                       setRegisterOtp("");
                       setRegisterPassword("");
                       setRegisterConfirm("");
+                      setTurnstileToken("");
+                      setTurnstileError(null);
+                      setTurnstileRefresh((n) => n + 1);
                     }}
                     className="text-sm font-medium text-neutral-700 underline-offset-4 hover:underline"
                   >
